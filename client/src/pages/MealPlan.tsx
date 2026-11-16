@@ -2551,6 +2551,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
           setViewingRecipe(null);
           setViewingMeal(null);
           setViewingServings(undefined);
+          setViewingSharedPerson("A");
           setIsSharedRecipeView(false);
           setIsViewingSharedDayRecipe(false);
           setViewingSharedBatchId(null);
