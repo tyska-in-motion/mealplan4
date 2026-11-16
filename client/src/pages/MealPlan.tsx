@@ -2145,6 +2145,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
                 },
                 wholeRecipeBatchId: batchId || undefined,
                 wholeRecipeBatchServings: batchId > 0 ? totalServings : undefined,
+                isWholeRecipeView: true,
               });
               // The values are already either summed for both people or
               // calculated for the full shared batch. RecipeView must not
@@ -2518,7 +2519,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {viewingMeal?.id && viewingRecipe?.portioningMode === "individual" && !isSharedRecipeView && (
+      {viewingMeal?.id && viewingRecipe?.portioningMode === "individual" && !isSharedRecipeView && !viewingMeal?.isWholeRecipeView && (
         <div className="mx-auto mb-3 w-full max-w-3xl rounded-xl border bg-background p-3 sm:p-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div><p className="text-sm font-semibold">Indywidualny wariant porcji</p><p className="text-xs text-muted-foreground">Zmiana wariantu ustawia składniki na zapisane ilości A/B/C.</p></div>
@@ -2561,10 +2562,10 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
           : viewingServings}
         mealEntryIngredients={isSharedRecipeView && viewingMeal?.sharedParticipantEntries ? undefined : viewingMeal?.ingredients}
         frequentAddonIds={viewingRecipe?.frequentAddons?.map((addon: any) => addon.ingredientId) || []}
-        onEditIngredients={viewingMeal ? (isSharedRecipeView ? startEditingSharedIngredients : startEditing) : undefined}
-        allowIngredientEditing={!!viewingMeal && !(isSharedRecipeView && viewingMeal?.id && getEditedSharedParticipantEntries(viewingMeal).length > 0)}
+        onEditIngredients={viewingMeal && !(viewingMeal?.isWholeRecipeView && isIndividualVariantRecipe(viewingRecipe)) ? (isSharedRecipeView ? startEditingSharedIngredients : startEditing) : undefined}
+        allowIngredientEditing={!!viewingMeal && !(viewingMeal?.isWholeRecipeView && isIndividualVariantRecipe(viewingRecipe)) && !(isSharedRecipeView && viewingMeal?.id && getEditedSharedParticipantEntries(viewingMeal).length > 0)}
         servingsLockedReason={!isSharedRecipeView && hasEditedMealIngredients(viewingMeal) ? "Porcje zablokowane (edytowano składniki)" : undefined}
-        onRestoreOriginalIngredients={(isSharedRecipeView && getEditedSharedParticipantEntries(viewingMeal).length > 0) || (!isSharedRecipeView && hasEditedMealIngredients(viewingMeal)) ? restoreOriginalIngredients : undefined}
+        onRestoreOriginalIngredients={!(viewingMeal?.isWholeRecipeView && isIndividualVariantRecipe(viewingRecipe)) && ((isSharedRecipeView && getEditedSharedParticipantEntries(viewingMeal).length > 0) || (!isSharedRecipeView && hasEditedMealIngredients(viewingMeal))) ? restoreOriginalIngredients : undefined}
         usePrecalculatedAmounts={isSharedRecipeView && !viewingMeal?.sharedParticipantEntries}
         switchPlannedPersonLabel={viewingMeal?.sharedParticipantEntries ? (viewingSharedPerson === "A" ? "Pokaż Matiego" : "Pokaż Tysię") : undefined}
         onSwitchPlannedPerson={viewingMeal?.sharedParticipantEntries ? () => setViewingSharedPerson((person) => person === "A" ? "B" : "A") : undefined}
