@@ -2557,16 +2557,20 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
           setIsViewingSharedDayRecipe(false);
           setViewingSharedBatchId(null);
         }}
-        plannedServings={isSharedRecipeView && viewingMeal?.sharedParticipantEntries
-          ? Number(viewingMeal.sharedParticipantEntries[viewingSharedPerson]?.servings) || 1
-          : viewingServings}
-        mealEntryIngredients={isSharedRecipeView && viewingMeal?.sharedParticipantEntries ? undefined : viewingMeal?.ingredients}
+        plannedServings={viewingMeal?.isWholeRecipeView
+          ? viewingServings
+          : isSharedRecipeView && viewingMeal?.sharedParticipantEntries
+            ? Number(viewingMeal.sharedParticipantEntries[viewingSharedPerson]?.servings) || 1
+            : viewingServings}
+        mealEntryIngredients={viewingMeal?.isWholeRecipeView
+          ? viewingMeal?.ingredients
+          : isSharedRecipeView && viewingMeal?.sharedParticipantEntries ? undefined : viewingMeal?.ingredients}
         frequentAddonIds={viewingRecipe?.frequentAddons?.map((addon: any) => addon.ingredientId) || []}
         onEditIngredients={viewingMeal && !(viewingMeal?.isWholeRecipeView && isIndividualVariantRecipe(viewingRecipe)) ? (isSharedRecipeView ? startEditingSharedIngredients : startEditing) : undefined}
         allowIngredientEditing={!!viewingMeal && !(viewingMeal?.isWholeRecipeView && isIndividualVariantRecipe(viewingRecipe)) && !(isSharedRecipeView && viewingMeal?.id && getEditedSharedParticipantEntries(viewingMeal).length > 0)}
         servingsLockedReason={!isSharedRecipeView && hasEditedMealIngredients(viewingMeal) ? "Porcje zablokowane (edytowano składniki)" : undefined}
         onRestoreOriginalIngredients={!(viewingMeal?.isWholeRecipeView && isIndividualVariantRecipe(viewingRecipe)) && ((isSharedRecipeView && getEditedSharedParticipantEntries(viewingMeal).length > 0) || (!isSharedRecipeView && hasEditedMealIngredients(viewingMeal))) ? restoreOriginalIngredients : undefined}
-        usePrecalculatedAmounts={isSharedRecipeView && !viewingMeal?.sharedParticipantEntries}
+        usePrecalculatedAmounts={!!viewingMeal?.isWholeRecipeView || (isSharedRecipeView && !viewingMeal?.sharedParticipantEntries)}
         switchPlannedPersonLabel={viewingMeal?.sharedParticipantEntries ? (viewingSharedPerson === "A" ? "Pokaż Matiego" : "Pokaż Tysię") : undefined}
         onSwitchPlannedPerson={viewingMeal?.sharedParticipantEntries ? () => setViewingSharedPerson((person) => person === "A" ? "B" : "A") : undefined}
         onPlannedServingsChange={isSharedRecipeView && viewingMeal?.sharedParticipantEntries ? (nextServings: number) => {
