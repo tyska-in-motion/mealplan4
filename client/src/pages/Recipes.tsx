@@ -742,7 +742,26 @@ export default function Recipes() {
 
     const getPersonNutrition = (servings: number, person: "A" | "B") => {
       const addonNutrition = getDefaultAddonNutrition(person);
-      const recipeNutrition = getRecipeTotals(recipe, servings);
+      let recipeNutrition;
+
+      if (recipe?.portioningMode === "individual") {
+        const variant = (person === "A" ? recipe?.defaultVariantA : recipe?.defaultVariantB) || "B";
+        recipeNutrition = (recipe?.ingredients || []).reduce((sum: any, item: any) => {
+          if (!item?.ingredient) return sum;
+          const amount = Math.max(0, Number(item?.[`variantAmount${variant}`]) || 0);
+          const nutritionAmount = calculateNutritionAmount(amount, item.ingredient);
+          const purchaseAmount = calculatePurchaseAmount(amount, item.ingredient);
+          return {
+            calories: sum.calories + (Number(item.ingredient.calories) || 0) * nutritionAmount / 100,
+            protein: sum.protein + (Number(item.ingredient.protein) || 0) * nutritionAmount / 100,
+            carbs: sum.carbs + (Number(item.ingredient.carbs) || 0) * nutritionAmount / 100,
+            fat: sum.fat + (Number(item.ingredient.fat) || 0) * nutritionAmount / 100,
+            price: sum.price + (Number(item.ingredient.price) || 0) * purchaseAmount / 100,
+          };
+        }, { calories: 0, protein: 0, carbs: 0, fat: 0, price: 0 });
+      } else {
+        recipeNutrition = getRecipeTotals(recipe, servings);
+      }
 
       return {
         calories: Math.round(recipeNutrition.calories + addonNutrition.calories),
@@ -1394,18 +1413,16 @@ export default function Recipes() {
                 {form.watch("portioningMode") === "individual" && (() => {
                   const rows = (form.watch("ingredients") || []).filter((row: any) => Number(row.ingredientId) > 0);
                   const totals = { A: 0, B: 0, C: 0 };
-                  let missing = false;
                   for (const row of rows) {
                     const food = (availableIngredients || []).find((item: any) => Number(item.id) === Number(row.ingredientId));
-                    const calories = Number(food?.calories);
+                    if (!food) continue;
                     for (const variant of ["A", "B", "C"] as const) {
-                      const amount = row[`variantAmount${variant}`];
-                      if (amount == null || !Number.isFinite(Number(amount))) { missing = true; continue; }
-                      // Ingredient calories are stored per 100 g; non-gram units are estimates.
-                      totals[variant] += (Number(amount) / 100) * (Number.isFinite(calories) ? calories : 0);
+                      const amount = Math.max(0, Number(row[`variantAmount${variant}`]) || 0);
+                      const nutritionAmount = calculateNutritionAmount(amount, food);
+                      totals[variant] += nutritionAmount / 100 * (Number(food.calories) || 0);
                     }
                   }
-                  return <div className="my-3 rounded-lg border bg-muted/30 p-3"><p className="text-sm font-medium mb-2">Szacowane kalorie na porcję</p><div className="grid grid-cols-3 gap-2 text-sm"><div><span className="text-muted-foreground">A</span><p className="font-semibold">{Math.round(totals.A)} kcal</p></div><div><span className="text-muted-foreground">B</span><p className="font-semibold">{Math.round(totals.B)} kcal</p></div><div><span className="text-muted-foreground">C</span><p className="font-semibold">{Math.round(totals.C)} kcal</p></div></div><p className="mt-2 text-xs text-muted-foreground">{missing ? "Uzupełnij ilości A, B i C dla wszystkich składników. Wartości są orientacyjne; dla jednostek innych niż g mogą być niedokładne." : "Wartości szacunkowe na podstawie kcal/100 g składnika."}</p></div>;
+                  return <div className="my-3 rounded-lg border bg-muted/30 p-3"><p className="text-sm font-medium mb-2">Szacowane kalorie na porcję</p><div className="grid grid-cols-3 gap-2 text-sm"><div><span className="text-muted-foreground">A</span><p className="font-semibold">{Math.round(totals.A)} kcal</p></div><div><span className="text-muted-foreground">B</span><p className="font-semibold">{Math.round(totals.B)} kcal</p></div><div><span className="text-muted-foreground">C</span><p className="font-semibold">{Math.round(totals.C)} kcal</p></div></div><p className="mt-2 text-xs text-muted-foreground">Wartości szacunkowe liczone tą samą metodą co kalorie na liście przepisów. Puste ilości wariantu oznaczają 0.</p></div>;
                 })()}
 
                 <Button type="button" variant="outline" size="sm" className="rounded-lg border-dashed w-full py-3 sm:py-5 border-2 hover:bg-primary/5 hover:border-primary/50 transition-all text-xs sm:text-sm" onClick={() => append({ ingredientId: 0, amount: 100, baseAmount: 100, variantAmountA: undefined, variantAmountB: undefined, variantAmountC: undefined, unit: "g", alternativeAmount: undefined, alternativeUnit: "", scalingType: "LINEAR", scalingFormula: "", stepThresholds: [], mealPrep: false, mealPrepMaxDaysBefore: 1, mealPrepNotes: "" })}>
