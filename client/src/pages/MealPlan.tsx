@@ -626,17 +626,26 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
     return candidates[occurrence - 1] || candidates[0];
   };
 
-  const splitSharedIngredientsByServings = (ingredients: any[], participants: any[]) => {
-    const totalServings = participants.reduce((sum: number, entry: any) => sum + (Number(entry?.servings) || 0), 0);
+  const splitSharedIngredientsByServings = (ingredients: any[], participants: any[], recipeServings: number) => {
     const participantAmounts = participants.map(() => [] as any[]);
 
     ingredients.forEach((ingredient: any) => {
       const totalAmount = Math.round(Number(ingredient.amount) || 0);
+      const scalingType = ingredient.scalingType || "LINEAR";
+      const weights = participants.map((entry: any) => {
+        const weight = calculateScaledAmount(
+          { ...ingredient, baseAmount: 1, scalingType } as any,
+          Number(entry?.servings) || 0,
+          recipeServings,
+        );
+        return Number.isFinite(weight) && weight > 0 ? weight : 0;
+      });
+      const totalWeight = weights.reduce((sum: number, weight: number) => sum + weight, 0);
       let assignedAmount = 0;
 
-      participants.forEach((entry: any, index: number) => {
+      participants.forEach((_entry: any, index: number) => {
         const isLastParticipant = index === participants.length - 1;
-        const ratio = totalServings > 0 ? (Number(entry?.servings) || 0) / totalServings : 0;
+        const ratio = totalWeight > 0 ? weights[index] / totalWeight : 1 / Math.max(1, participants.length);
         const amount = isLastParticipant
           ? totalAmount - assignedAmount
           : Math.round(totalAmount * ratio);
@@ -645,6 +654,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
         participantAmounts[index].push({
           ingredientId: Number(ingredient.ingredientId),
           amount,
+          // Meal-entry ingredient amounts are final per-person overrides.
           scalingType: "FIXED" as const,
         });
       });
@@ -782,7 +792,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
       .map(i => ({
         ingredientId: Number(i.ingredientId),
         amount: Number(i.amount) || 0,
-        scalingType: "FIXED",
+        scalingType: i.scalingType || "LINEAR",
       }));
 
     if (ingredientsData.length === 0) {
@@ -845,7 +855,11 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
       const totalSharedServings = participants.reduce((sum: number, entry: any) => sum + (Number(entry?.servings) || 0), 0);
 
       if (participants.length > 0 && totalSharedServings > 0) {
-        const splitIngredients = splitSharedIngredientsByServings(ingredientsData, participants)
+        const splitIngredients = splitSharedIngredientsByServings(
+          ingredientsData,
+          participants,
+          Number(viewingRecipe.servings) || 1,
+        )
           .map((ingredientShare, index) => [
             ...ingredientShare,
             // Keep additions for this person out of the shared recipe edit.
