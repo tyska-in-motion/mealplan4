@@ -578,6 +578,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
   const [viewingRecipe, setViewingRecipe] = useState<any>(null);
   const [viewingMeal, setViewingMeal] = useState<any>(null);
   const [viewingServings, setViewingServings] = useState<number | undefined>(undefined);
+  const [viewingSharedPerson, setViewingSharedPerson] = useState<"A" | "B">("A");
   const [isSharedRecipeView, setIsSharedRecipeView] = useState(false);
 
   const [editingMealIngredients, setEditingMealIngredients] = useState<any[]>([]);
@@ -867,6 +868,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
           setViewingRecipe(null);
           setViewingMeal(null);
           setViewingServings(undefined);
+          setViewingSharedPerson("A");
           setIsSharedRecipeView(false);
           setViewingSharedBatchId(null);
           toast({ title: "Zapisano", description: "Składniki przepisu podzielono na porcje, a osobiste dodatki pozostały przy swoich osobach." });
@@ -2185,6 +2187,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
                   },
                 });
                 setViewingServings(servingsForView);
+                setViewingSharedPerson(meal?.person === "B" ? "B" : "A");
                 setIsSharedRecipeView(true);
                 setViewingSharedBatchId(cookedBatchId || null);
                 return;
@@ -2552,14 +2555,37 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
           setIsViewingSharedDayRecipe(false);
           setViewingSharedBatchId(null);
         }}
-        plannedServings={viewingServings}
-        mealEntryIngredients={viewingMeal?.ingredients}
+        plannedServings={isSharedRecipeView && viewingMeal?.sharedParticipantEntries
+          ? Number(viewingMeal.sharedParticipantEntries[viewingSharedPerson]?.servings) || 1
+          : viewingServings}
+        mealEntryIngredients={isSharedRecipeView && viewingMeal?.sharedParticipantEntries ? undefined : viewingMeal?.ingredients}
         frequentAddonIds={viewingRecipe?.frequentAddons?.map((addon: any) => addon.ingredientId) || []}
         onEditIngredients={viewingMeal ? (isSharedRecipeView ? startEditingSharedIngredients : startEditing) : undefined}
         allowIngredientEditing={!!viewingMeal && !(isSharedRecipeView && viewingMeal?.id && getEditedSharedParticipantEntries(viewingMeal).length > 0)}
-        servingsLockedReason={hasEditedMealIngredients(viewingMeal) ? "Porcje zablokowane (edytowano składniki)" : undefined}
+        servingsLockedReason={!isSharedRecipeView && hasEditedMealIngredients(viewingMeal) ? "Porcje zablokowane (edytowano składniki)" : undefined}
         onRestoreOriginalIngredients={(isSharedRecipeView && getEditedSharedParticipantEntries(viewingMeal).length > 0) || (!isSharedRecipeView && hasEditedMealIngredients(viewingMeal)) ? restoreOriginalIngredients : undefined}
-        usePrecalculatedAmounts={isSharedRecipeView}
+        usePrecalculatedAmounts={isSharedRecipeView && !viewingMeal?.sharedParticipantEntries}
+        switchPlannedPersonLabel={viewingMeal?.sharedParticipantEntries ? (viewingSharedPerson === "A" ? "Pokaż Matiego" : "Pokaż Tysię") : undefined}
+        onSwitchPlannedPerson={viewingMeal?.sharedParticipantEntries ? () => setViewingSharedPerson((person) => person === "A" ? "B" : "A") : undefined}
+        onPlannedServingsChange={isSharedRecipeView && viewingMeal?.sharedParticipantEntries ? (nextServings: number) => {
+          const entry = viewingMeal.sharedParticipantEntries[viewingSharedPerson];
+          if (!entry?.id) return;
+          const servings = Math.max(0.25, Math.round(nextServings * 100) / 100);
+          const previousServings = Number(entry.servings) || 1;
+          if (Math.abs(servings - previousServings) < 1e-9) return;
+          setViewingMeal((prev: any) => prev?.sharedParticipantEntries ? ({
+            ...prev,
+            servings: Math.max(0, (Number(prev.sharedParticipantEntries.A?.servings) || 0)
+              + (Number(prev.sharedParticipantEntries.B?.servings) || 0)
+              + servings - previousServings),
+            sharedParticipantEntries: {
+              ...prev.sharedParticipantEntries,
+              [viewingSharedPerson]: { ...prev.sharedParticipantEntries[viewingSharedPerson], servings },
+            },
+          }) : prev);
+          setViewingServings((prev) => Math.max(0, (Number(prev) || 0) + servings - previousServings));
+          void handleEntryUpdate(entry, { servings });
+        } : undefined}
         compact
         showFooter={!viewingMeal && !isViewingSharedDayRecipe && !isAddOpen}
         onAddToPlan={(recipe) => {
