@@ -1291,9 +1291,9 @@ export default function Recipes() {
                             </Popover>
                           </div>
                           <div className="grid grid-cols-2 gap-2 md:grid-cols-4 lg:flex lg:flex-1 lg:gap-2">
-                            <div className="col-span-1 lg:w-24">
+                            {form.watch("portioningMode") !== "individual" && <div className="col-span-1 lg:w-24">
                               <Input type="text" inputMode="decimal" placeholder="Bazowa" className="h-8 rounded-lg px-2 text-xs sm:h-9 sm:px-3 sm:text-sm" {...form.register(`ingredients.${index}.baseAmount` as const)} />
-                            </div>
+                            </div>}
                             <div className="col-span-1 lg:w-24">
                               <Input placeholder="Jedn." className="h-8 rounded-lg px-2 text-xs sm:h-9 sm:px-3 sm:text-sm" {...form.register(`ingredients.${index}.unit` as const)} />
                             </div>
@@ -1302,14 +1302,16 @@ export default function Recipes() {
                               <div className="col-span-1 lg:w-24"><Input type="text" inputMode="decimal" aria-label="Ilość wariantu B" placeholder="B ilość" className="h-8 rounded-lg px-2 text-xs sm:h-9 sm:px-3 sm:text-sm" {...form.register(`ingredients.${index}.variantAmountB` as const)} /></div>
                               <div className="col-span-1 lg:w-24"><Input type="text" inputMode="decimal" aria-label="Ilość wariantu C" placeholder="C ilość" className="h-8 rounded-lg px-2 text-xs sm:h-9 sm:px-3 sm:text-sm" {...form.register(`ingredients.${index}.variantAmountC` as const)} /></div>
                             </>}
-                            <div className="col-span-1 lg:w-24">
-                              <Input type="number" step="0.01" placeholder="np. 1" className="h-8 rounded-lg px-2 text-xs sm:h-9 sm:px-3 sm:text-sm" {...form.register(`ingredients.${index}.alternativeAmount` as const)} />
-                            </div>
-                            <div className="col-span-1 lg:w-32">
-                              <Input placeholder="np. sztuka" className="h-8 rounded-lg px-2 text-xs sm:h-9 sm:px-3 sm:text-sm" {...form.register(`ingredients.${index}.alternativeUnit` as const)} />
-                            </div>
+                            {form.watch("portioningMode") !== "individual" && <>
+                              <div className="col-span-1 lg:w-24">
+                                <Input type="number" step="0.01" placeholder="np. 1" className="h-8 rounded-lg px-2 text-xs sm:h-9 sm:px-3 sm:text-sm" {...form.register(`ingredients.${index}.alternativeAmount` as const)} />
+                              </div>
+                              <div className="col-span-1 lg:w-32">
+                                <Input placeholder="np. sztuka" className="h-8 rounded-lg px-2 text-xs sm:h-9 sm:px-3 sm:text-sm" {...form.register(`ingredients.${index}.alternativeUnit` as const)} />
+                              </div>
+                            </>}
                           </div>
-                          <div className="w-full lg:w-36">
+                          {form.watch("portioningMode") !== "individual" && <div className="w-full lg:w-36">
                             <Select
                               value={form.watch(`ingredients.${index}.scalingType`) || "LINEAR"}
                               onValueChange={(value) => form.setValue(`ingredients.${index}.scalingType`, value as any)}
@@ -1322,7 +1324,7 @@ export default function Recipes() {
                                 <SelectItem value="FORMULA">FORMULA</SelectItem>
                               </SelectContent>
                             </Select>
-                          </div>
+                          </div>}
                           <Button type="button" variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg hover:bg-red-50 hover:text-red-500 self-end sm:self-auto" onClick={() => remove(index)}>
                             <X className="w-4 h-4" />
                           </Button>
@@ -1349,7 +1351,7 @@ export default function Recipes() {
                           )}
                         </div>
 
-                        {(() => {
+                        {form.watch("portioningMode") !== "individual" && (() => {
                           const selectedIngredient = (availableIngredients || []).find((i: any) => i.id === selectedId);
                           const unitWeight = Number(selectedIngredient?.unitWeight) || 0;
                           const baseAmount = Number(form.watch(`ingredients.${index}.baseAmount`)) || 0;
@@ -1357,25 +1359,16 @@ export default function Recipes() {
                           const alternativeUnit = form.watch(`ingredients.${index}.alternativeUnit`) || "";
                           if (alternativeAmount <= 0 || !alternativeUnit.trim()) {
                             if (unitWeight <= 0) return null;
-                            return (
-                              <p className="mt-2 text-[10px] text-muted-foreground sm:text-xs">
-                                Wielkość sztuki: 1 szt. ≈ {formatLocalizedNumber(unitWeight)}g
-                              </p>
-                            );
+                            return <p className="mt-2 text-[10px] text-muted-foreground sm:text-xs">Wielkość sztuki: 1 szt. ≈ {formatLocalizedNumber(unitWeight)}g</p>;
                           }
-                          return (
-                            <p className="mt-2 text-[10px] text-muted-foreground sm:text-xs">
-                              Podgląd: {formatLocalizedNumber(baseAmount)}g = {formatLocalizedNumber(alternativeAmount)} {alternativeUnit}
-                              {unitWeight > 0 ? ` · baza składnika: 1 szt. ≈ ${formatLocalizedNumber(unitWeight)}g` : ""}
-                            </p>
-                          );
+                          return <p className="mt-2 text-[10px] text-muted-foreground sm:text-xs">Podgląd: {formatLocalizedNumber(baseAmount)}g = {formatLocalizedNumber(alternativeAmount)} {alternativeUnit}{unitWeight > 0 ? ` · baza składnika: 1 szt. ≈ ${formatLocalizedNumber(unitWeight)}g` : ""}</p>;
                         })()}
-                        {form.watch(`ingredients.${index}.scalingType`) === "FORMULA" && (
+                        {form.watch("portioningMode") !== "individual" && form.watch(`ingredients.${index}.scalingType`) === "FORMULA" && (
                           <div className="mt-2">
                             <Input placeholder="np. 100 + (scaleFactor - 1) * 50" className="h-9 rounded-lg" {...form.register(`ingredients.${index}.scalingFormula` as const)} />
                           </div>
                         )}
-                        {form.watch(`ingredients.${index}.scalingType`) === "STEP" && (
+                        {form.watch("portioningMode") !== "individual" && form.watch(`ingredients.${index}.scalingType`) === "STEP" && (
                           <div className="mt-2 space-y-2">
                             {(form.watch(`ingredients.${index}.stepThresholds`) || []).map((_: any, thresholdIndex: number) => (
                               <div key={thresholdIndex} className="grid grid-cols-4 gap-2 items-center">
