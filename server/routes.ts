@@ -1172,9 +1172,15 @@ export async function registerRoutes(
       let { ingredients: ingredientsList, confirmVariantReset, ...updates } = req.body || {};
 
       const finalUpdates: any = {};
-      const allowedFields = ["servings", "consumedWeightGrams", "isEaten", "person", "customName", "customCalories", "customProtein", "customCarbs", "customFat", "customSugar", "customFiber", "date", "mealType", "cookedBatchId", "portionVariant"];
+      const allowedFields = ["servings", "consumedWeightGrams", "isEaten", "rating", "person", "customName", "customCalories", "customProtein", "customCarbs", "customFat", "customSugar", "customFiber", "date", "mealType", "cookedBatchId", "portionVariant"];
       for (const field of allowedFields) {
         if (updates[field] !== undefined) finalUpdates[field] = updates[field];
+      }
+      if (updates.rating !== undefined && updates.rating !== null && (!Number.isInteger(updates.rating) || updates.rating < 1 || updates.rating > 5)) {
+        return res.status(400).json({ message: "Ocena musi wynosić od 1 do 5 gwiazdek." });
+      }
+      if (updates.rating != null && updates.isEaten === false) {
+        return res.status(400).json({ message: "Można oceniać tylko zjedzony posiłek." });
       }
 
       let entry = await storage.getMealEntryById(id);
@@ -1884,7 +1890,7 @@ export async function registerRoutes(
     for (const entry of historyEntries) {
       if (entry.recipeId) {
         const list = historyByRecipe.get(Number(entry.recipeId)) || [];
-        list.push({ date: String(entry.date).slice(0, 10), eaten: !!entry.isEaten, mealType: entry.mealType });
+        list.push({ date: String(entry.date).slice(0, 10), eaten: !!entry.isEaten, mealType: entry.mealType, person: entry.person === "B" ? "B" : "A", rating: entry.rating == null ? null : Number(entry.rating) });
         historyByRecipe.set(Number(entry.recipeId), list);
       }
       if (entry.isEaten) {
