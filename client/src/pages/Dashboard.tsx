@@ -1860,7 +1860,7 @@ export default function Dashboard() {
                           <div className="flex min-w-0 flex-1 flex-col">
                             <p className={cn(
                                 "truncate pr-5 text-base font-semibold transition-all",
-                                meal.isEaten && "text-muted-foreground line-through decoration-primary/50"
+                                meal.isEaten && "text-muted-foreground dark:text-emerald-100 line-through decoration-primary/50"
                               )}>
                               {meal.recipe?.name || meal.customName}
                             </p>
