@@ -10,11 +10,13 @@ export type RecommendationCandidate = {
   prepTime?: number | null;
   nutritionA: MacroTotals;
   nutritionB: MacroTotals;
+  produceGramsA?: number;
+  produceGramsB?: number;
   ingredientIds?: number[];
   history: RecommendationHistoryEvent[];
   feedback?: RecommendationFeedback | null;
 };
-export type RecommendationScore = { recipeId: number; score: number; reasons: string[]; breakdown: { macro: number; history: number; preferences: number; variety: number; plan: number } };
+export type RecommendationScore = { recipeId: number; score: number; reasons: string[]; breakdown: { macro: number; history: number; preferences: number; variety: number; plan: number; produce: number } };
 
 const clamp = (value: number, min = 0, max = 100) => Math.max(min, Math.min(max, value));
 const valid = (value: unknown) => Number.isFinite(Number(value)) ? Number(value) : 0;
@@ -100,14 +102,22 @@ export function scoreRecipeRecommendations(input: {
     const recentPlanned = events.some((event) => !event.eaten && dayAge(event.date, input.date) <= 3);
     const variety = recentEaten ? 15 : recentPlanned ? 45 : 85;
     const plan = planned.has(candidate.id) ? 0 : 85;
-    const breakdown = { macro, history, preferences, variety, plan };
+    const produceGrams = targetPerson === "A"
+      ? valid(candidate.produceGramsA)
+      : targetPerson === "B"
+        ? valid(candidate.produceGramsB)
+        : Math.max(valid(candidate.produceGramsA), valid(candidate.produceGramsB));
+    const produce = produceGrams >= 100 ? 100 : 0;
+    const breakdown = { macro, history, preferences, variety, plan, produce };
     let score = input.mealType
       ? history * 0.55 + preferences * 0.20 + variety * 0.20 + plan * 0.05
       : macro * 0.35 + history * 0.25 + preferences * 0.15 + variety * 0.15 + plan * 0.10;
+    if (produce > 0) score += 12;
     const reasons: string[] = [];
     if (macro >= 70) reasons.push("Dobrze pasuje do pozostałego bilansu makro");
     if (targetPerson !== "both" && bothFit) reasons.push("Pasuje do bilansu obu osób");
     if (history >= 65) reasons.push("Pasuje do dotychczasowych wyborów");
+    if (produce > 0) reasons.push("Co najmniej 100 g warzyw lub owoców w porcji");
     if (candidate.isFavorite) reasons.push("Przepis oznaczony jako ulubiony");
     if (recentEaten) reasons.push("Ostatnio jedzony – ograniczono jego pozycję");
     if (!recentEaten && !recentPlanned) reasons.push("Daje większą różnorodność");
@@ -125,6 +135,6 @@ export function scoreRecipeRecommendations(input: {
   return results
     .filter((item) => item.score > 0)
     .sort((a, b) => b.priority - a.priority || b.score - a.score)
-    .slice(0, Math.max(1, input.limit || 10))
+    .slice(0, Math.max(1, input.limit || 40))
     .map(({ priority: _priority, ...item }) => item);
 }
