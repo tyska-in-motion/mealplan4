@@ -1826,6 +1826,7 @@ export async function registerRoutes(
     const input = z.object({
       date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
       limit: z.coerce.number().int().min(1).max(30).optional(),
+      mealType: z.enum(["breakfast", "snack", "lunch", "dinner"]).optional(),
     }).parse(req.query);
     const date = input.date;
     const startDate = new Date(Date.parse(date + "T00:00:00Z") - 59 * 86400000).toISOString().slice(0, 10);
@@ -1854,6 +1855,7 @@ export async function registerRoutes(
       B: { calories: 0, protein: 0, carbs: 0, fat: 0 },
     };
     for (const entry of todayEntries) {
+      if (!entry.isEaten) continue;
       const person = entry.person === "B" ? "B" : "A";
       const rows = entry.ingredients?.length ? entry.ingredients : entry.recipe?.ingredients || [];
       const occurrenceTracker = new Map<number, number>();
@@ -1880,7 +1882,7 @@ export async function registerRoutes(
     for (const entry of historyEntries) {
       if (entry.recipeId) {
         const list = historyByRecipe.get(Number(entry.recipeId)) || [];
-        list.push({ date: String(entry.date).slice(0, 10), eaten: !!entry.isEaten });
+        list.push({ date: String(entry.date).slice(0, 10), eaten: !!entry.isEaten, mealType: entry.mealType });
         historyByRecipe.set(Number(entry.recipeId), list);
       }
       if (entry.isEaten) {
@@ -1905,6 +1907,7 @@ export async function registerRoutes(
       isFavorite: !!recipe.isFavorite,
       tags: recipe.tags || [],
       prepTime: recipe.prepTime,
+      imageUrl: recipe.imageUrl || null,
       defaultServingsA: Number(recipe.defaultServingsA || 1),
       defaultServingsB: Number(recipe.defaultServingsB || 1.5),
       nutritionA: (() => {
@@ -1939,11 +1942,12 @@ export async function registerRoutes(
       plannedRecipeIds,
       ingredientAffinity,
       limit: input.limit || 10,
+      mealType: input.mealType,
     });
     const byId = new Map(mapped.map((recipe) => [recipe.id, recipe]));
     res.json({
       date,
-      settings: { historyDays: 60, macroMode: "remaining", dislikeMode: "penalty" },
+      settings: { historyDays: 60, macroMode: "remaining", dislikeMode: "penalty", mealType: input.mealType || null },
       recommendations: recommendations.map((item) => ({ ...item, recipe: byId.get(item.recipeId) })),
     });
   });
