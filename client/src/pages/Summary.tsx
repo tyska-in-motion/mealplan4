@@ -225,7 +225,7 @@ export default function Summary() {
           const amount = typeof row.calculatedAmount === "number"
             ? row.calculatedAmount
             : calculateScaledAmount(row, Number(entry.servings) || 1, Number(entry.recipe?.servings) || 1);
-          const current = ingredientMap.get(key) || {
+          const current: { key: string; id: number; name: string; category: string; unit: string; amount: number; events: Set<string>; dates: Set<string>; usages: IngredientUsage[] } = ingredientMap.get(key) || {
             key, id, name: ingredient.name || "Składnik", category: ingredient.category || "Bez kategorii",
             unit, amount: 0, events: new Set<string>(), dates: new Set<string>(), usages: [],
           };
@@ -245,10 +245,10 @@ export default function Summary() {
         });
       });
     });
-    const ingredients = [...ingredientMap.values()].sort((a, b) => b.amount - a.amount);
-    const recipes = [...recipeMap.values()].sort((a, b) => b.count - a.count);
-    const categories = [...new Set(ingredients.map((item) => item.category))].sort((a, b) => a.localeCompare(b, "pl"));
-    const tags = [...new Set(recipes.flatMap((item) => item.tags))].sort((a, b) => a.localeCompare(b, "pl"));
+    const ingredients = Array.from(ingredientMap.values()).sort((a, b) => b.amount - a.amount);
+    const recipes = Array.from(recipeMap.values()).sort((a, b) => b.count - a.count);
+    const categories = Array.from(new Set(ingredients.map((item) => item.category))).sort((a, b) => a.localeCompare(b, "pl"));
+    const tags = Array.from(new Set(recipes.flatMap((item) => item.tags))).sort((a, b) => a.localeCompare(b, "pl"));
     // A date excluded by both people is not part of the calorie trend at all.
     // If only one person excluded it, keep the date and show only the other person's value.
     const dailyChart = days
