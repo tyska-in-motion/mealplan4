@@ -1880,7 +1880,7 @@ export async function registerRoutes(
       list.push({ date: String(entry.date).slice(0, 10), eaten: !!entry.isEaten });
       historyByRecipe.set(Number(entry.recipeId), list);
     }
-    const feedbackRows = Array.isArray(feedbackState?.data) ? feedbackState.data : [];
+    const feedbackRows = Array.isArray(feedbackState) ? feedbackState : [];
     const feedbackByRecipe = new Map<number, any>();
     for (const item of feedbackRows) feedbackByRecipe.set(Number(item.recipeId), item);
     const mapped = candidates.map((recipe: any) => ({
@@ -1923,7 +1923,7 @@ export async function registerRoutes(
         rating: z.number().int().min(1).max(5).nullable().optional(),
       }).parse(req.body);
       const current = await storage.getAppState("recipe-recommendation-feedback");
-      const rows = Array.isArray(current?.data) ? current.data : [];
+      const rows = Array.isArray(current) ? current : [];
       const next = rows.filter((item: any) => Number(item.recipeId) !== input.recipeId);
       if (input.action !== "CLEAR") {
         next.push({ recipeId: input.recipeId, action: input.action, rating: input.rating ?? null, createdAt: new Date().toISOString() });
