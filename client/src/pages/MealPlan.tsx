@@ -167,7 +167,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
   const createSharedBatch = useMutation({
     mutationFn: async () => {
       const payload = { recipeId: sharedRecipeId, totalServings: sharedTotalServings, note: sharedNote || undefined };
-      const res = await fetch(api.sharedMeals.createBatch.path, {
+      const res = await fetchWithTimeout(api.sharedMeals.createBatch.path, {
         method: api.sharedMeals.createBatch.method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -271,7 +271,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
   });
 
   const createSharedBatchForEntry = async ({ recipeId, totalServings, note }: { recipeId: number; totalServings: number; note?: string }) => {
-    const res = await fetch(api.sharedMeals.createBatch.path, {
+    const res = await fetchWithTimeout(api.sharedMeals.createBatch.path, {
       method: api.sharedMeals.createBatch.method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
