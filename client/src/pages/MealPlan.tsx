@@ -1133,7 +1133,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
       const byId = new Map((filteredRecipes || []).map((recipe: any) => [Number(recipe.id), recipe]));
       result = rankedIds.map((id: number) => byId.get(id)).filter(Boolean);
     } else if (recipeTab === "rare") {
-      const eligibleIds = new Set((mealRecommendations?.macroEligibleRecipeIds || []).map((id: number) => Number(id)));
+      const eligibleIds = new Set((mealRecommendations?.rarelyEatenRecipeIds || []).map((id: number) => Number(id)));
       result = filteredRecipes.filter((recipe: any) => eligibleIds.has(Number(recipe.id))).sort((a: any, b: any) => {
         const countDifference = (Number(a?.stats?.eatCount) || 0) - (Number(b?.stats?.eatCount) || 0);
         if (countDifference !== 0) return countDifference;
