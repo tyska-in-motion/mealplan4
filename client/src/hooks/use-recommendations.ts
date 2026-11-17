@@ -20,12 +20,12 @@ export type RecipeRecommendation = {
   };
 };
 
-export function useRecipeRecommendations(date: string, mealType?: string | null, enabled = true) {
+export function useRecipeRecommendations(date: string, mealType?: string | null, enabled = true, targetPerson: "A" | "B" | "both" = "both") {
   return useQuery({
-    queryKey: [api.recommendations.list.path, date, mealType || "all"],
+    queryKey: [api.recommendations.list.path, date, mealType || "all", targetPerson],
     enabled,
     queryFn: async () => {
-      const url = buildUrl(api.recommendations.list.path, { date, ...(mealType ? { mealType } : {}) });
+      const url = buildUrl(api.recommendations.list.path, { date, targetPerson, ...(mealType ? { mealType } : {}) });
       const response = await fetchWithTimeout(url);
       if (!response.ok) throw new Error("Nie udało się pobrać rekomendacji");
       return response.json() as Promise<{ date: string; macroEligibleRecipeIds: number[]; recommendations: RecipeRecommendation[] }>;

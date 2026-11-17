@@ -566,7 +566,12 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
   const [recipeTab, setRecipeTab] = useState<"all" | "recommended" | "rare">("all");
 
   const { data: recipes, isFetching: isFetchingRecipes } = useRecipeSearchIndex(isAddOpen || isSharedView);
-  const { data: mealRecommendations } = useRecipeRecommendations(selectedDateStr || "", selectedMealType, isAddOpen && !isSharedView && !!selectedDateStr && !!selectedMealType);
+  const { data: mealRecommendations } = useRecipeRecommendations(
+    selectedDateStr || "",
+    selectedMealType,
+    isAddOpen && !isSharedView && !!selectedDateStr && !!selectedMealType,
+    addRecipeForBothPeople ? "both" : selectedPerson,
+  );
   const filteredSharedRecipes = useMemo(() => {
     const normalizedQuery = normalizeSearchText(sharedRecipeSearch);
     if (!normalizedQuery) return recipes || [];
@@ -1116,7 +1121,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
     setSelectedRecipeToAdd(null);
     setSelectedRecommendedBatchId(null);
     setSelectedFrequentAddons({ A: {}, B: {} });
-    setAddRecipeForBothPeople(true);
+    setAddRecipeForBothPeople(false);
     setSelectedRecipeServings(1);
     setSelectedPersonServings({ A: 1, B: 1 });
     setSelectedSuggestedRecipes({});
@@ -2797,6 +2802,21 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
           </DialogHeader>
 
           <div className="space-y-4 mt-2 sm:mt-4">
+            <div className="rounded-lg border border-border/70 bg-muted/30 px-3 py-2">
+              <label className="flex items-center gap-2 text-sm font-medium">
+                <input
+                  type="checkbox"
+                  checked={addRecipeForBothPeople}
+                  onChange={(e) => setAddRecipeForBothPeople(e.target.checked)}
+                />
+                Dodaj posiłek dla obu osób
+              </label>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {addRecipeForBothPeople
+                  ? "Rekomendacje muszą pasować do pozostałego bilansu A i B."
+                  : `Najpierw pokażę przepisy pasujące A i B, a niżej te pasujące tylko do ${personName[selectedPerson]}.`}
+              </p>
+            </div>
             {recommendedSharedBatches.length > 0 && (
               <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-3">
                 <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Polecane pozostałe porcje ze wspólnych posiłków</p>
@@ -2951,7 +2971,6 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
                         });
                         setSelectedRecommendedBatchId(null);
                         setSelectedFrequentAddons(getDefaultFrequentAddonsSelection(recipe));
-                        setAddRecipeForBothPeople(true);
                         setSelectedRecipeServings(getRecipeDefaultServingsForPerson(recipe, selectedPerson));
                         setSelectedPersonServings({ A: getRecipeDefaultServingsForPerson(recipe, "A"), B: getRecipeDefaultServingsForPerson(recipe, "B") });
                                             const initialSuggestions = ((recipe?.suggestedRecipes || []) as any[]).reduce((acc: Record<string, number>, item: any) => {
@@ -3231,15 +3250,6 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
                 )}
 
 
-
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={addRecipeForBothPeople}
-                    onChange={(e) => setAddRecipeForBothPeople(e.target.checked)}
-                  />
-                  Dodaj ten przepis od razu dla obu osób
-                </label>
 
                 <DialogFooter className="gap-2 sm:gap-0">
                   <Button className="max-sm:w-full" variant="ghost" onClick={closeAddDialog} disabled={isAddingRecipe}>Anuluj</Button>

@@ -1827,6 +1827,7 @@ export async function registerRoutes(
       date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
       limit: z.coerce.number().int().min(1).max(30).optional(),
       mealType: z.enum(["breakfast", "snack", "lunch", "dinner"]).optional(),
+      targetPerson: z.enum(["A", "B", "both"]).optional(),
     }).parse(req.query);
     const date = input.date;
     const startDate = new Date(Date.parse(date + "T00:00:00Z") - 59 * 86400000).toISOString().slice(0, 10);
@@ -1937,8 +1938,9 @@ export async function registerRoutes(
       A: { target: { calories: settings.A.targetCalories, protein: settings.A.targetProtein, carbs: settings.A.targetCarbs, fat: settings.A.targetFat }, consumed: consumed.A },
       B: { target: { calories: settings.B.targetCalories, protein: settings.B.targetProtein, carbs: settings.B.targetCarbs, fat: settings.B.targetFat }, consumed: consumed.B },
     };
+    const targetPerson = input.targetPerson || "both";
     const macroEligibleRecipeIds = mapped
-      .filter((recipe) => isRecommendationMacroEligible(recipe, balances))
+      .filter((recipe) => isRecommendationMacroEligible(recipe, balances, targetPerson))
       .map((recipe) => recipe.id);
     const recommendations = scoreRecipeRecommendations({
       candidates: mapped,
@@ -1948,11 +1950,12 @@ export async function registerRoutes(
       ingredientAffinity,
       limit: input.limit || 10,
       mealType: input.mealType,
+      targetPerson,
     });
     const byId = new Map(mapped.map((recipe) => [recipe.id, recipe]));
     res.json({
       date,
-      settings: { historyDays: 60, macroMode: "remaining", dislikeMode: "penalty", mealType: input.mealType || null },
+      settings: { historyDays: 60, macroMode: "remaining", dislikeMode: "penalty", mealType: input.mealType || null, targetPerson },
       macroEligibleRecipeIds,
       recommendations: recommendations.map((item) => ({ ...item, recipe: byId.get(item.recipeId) })),
     });

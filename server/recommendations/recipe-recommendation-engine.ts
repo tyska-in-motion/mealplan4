@@ -41,9 +41,13 @@ export function isWithinMacroTolerance(candidate: MacroTotals, balance: PersonDa
 export function isRecommendationMacroEligible(
   candidate: Pick<RecommendationCandidate, "nutritionA" | "nutritionB">,
   balances: { A: PersonDayBalance; B: PersonDayBalance },
+  targetPerson: "A" | "B" | "both" = "both",
 ): boolean {
-  return isWithinMacroTolerance(candidate.nutritionA, balances.A)
-    && isWithinMacroTolerance(candidate.nutritionB, balances.B);
+  const fitsA = isWithinMacroTolerance(candidate.nutritionA, balances.A);
+  const fitsB = isWithinMacroTolerance(candidate.nutritionB, balances.B);
+  if (targetPerson === "A") return fitsA;
+  if (targetPerson === "B") return fitsB;
+  return fitsA && fitsB;
 }
 
 function macroFit(candidate: MacroTotals, balance: PersonDayBalance): number {
@@ -69,11 +73,20 @@ export function scoreRecipeRecommendations(input: {
   ingredientAffinity?: Record<number, number>;
   limit?: number;
   mealType?: string;
+  targetPerson?: "A" | "B" | "both";
 }): RecommendationScore[] {
   const planned = new Set(input.plannedRecipeIds || []);
-  const eligibleCandidates = input.candidates.filter((candidate) => isRecommendationMacroEligible(candidate, input.balances));
+  const targetPerson = input.targetPerson || "both";
+  const eligibleCandidates = input.candidates.filter((candidate) => isRecommendationMacroEligible(candidate, input.balances, targetPerson));
   const results = eligibleCandidates.map((candidate) => {
-    const macro = (macroFit(candidate.nutritionA, input.balances.A) + macroFit(candidate.nutritionB, input.balances.B)) / 2;
+    const fitsA = isWithinMacroTolerance(candidate.nutritionA, input.balances.A);
+    const fitsB = isWithinMacroTolerance(candidate.nutritionB, input.balances.B);
+    const bothFit = fitsA && fitsB;
+    const macro = targetPerson === "A"
+      ? macroFit(candidate.nutritionA, input.balances.A)
+      : targetPerson === "B"
+        ? macroFit(candidate.nutritionB, input.balances.B)
+        : (macroFit(candidate.nutritionA, input.balances.A) + macroFit(candidate.nutritionB, input.balances.B)) / 2;
     const events = candidate.history.filter((event) => dayAge(event.date, input.date) <= 60 && (!input.mealType || event.mealType === input.mealType));
     const historyStrength = events.reduce((sum, event) => {
       const age = dayAge(event.date, input.date);
@@ -93,6 +106,7 @@ export function scoreRecipeRecommendations(input: {
       : macro * 0.35 + history * 0.25 + preferences * 0.15 + variety * 0.15 + plan * 0.10;
     const reasons: string[] = [];
     if (macro >= 70) reasons.push("Dobrze pasuje do pozostałego bilansu makro");
+    if (targetPerson !== "both" && bothFit) reasons.push("Pasuje do bilansu obu osób");
     if (history >= 65) reasons.push("Pasuje do dotychczasowych wyborów");
     if (candidate.isFavorite) reasons.push("Przepis oznaczony jako ulubiony");
     if (recentEaten) reasons.push("Ostatnio jedzony – ograniczono jego pozycję");
@@ -106,10 +120,11 @@ export function scoreRecipeRecommendations(input: {
     if (candidate.feedback?.action === "TOO_OFTEN") score -= 18;
     if (candidate.feedback?.action === "HIDE") score = 0;
     if (planned.has(candidate.id)) { reasons.push("Przepis jest już w planie"); score = 0; }
-    return { recipeId: candidate.id, score: Math.round(clamp(score)), reasons, breakdown };
+    return { recipeId: candidate.id, score: Math.round(clamp(score)), reasons, breakdown, priority: targetPerson !== "both" && bothFit ? 1 : 0 };
   });
   return results
     .filter((item) => item.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, Math.max(1, input.limit || 10));
+    .sort((a, b) => b.priority - a.priority || b.score - a.score)
+    .slice(0, Math.max(1, input.limit || 10))
+    .map(({ priority: _priority, ...item }) => item);
 }
