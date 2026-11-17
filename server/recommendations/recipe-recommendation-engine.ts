@@ -25,12 +25,17 @@ const dayAge = (date: string, today: string) => {
 };
 
 export function isWithinMacroTolerance(candidate: MacroTotals, balance: PersonDayBalance): boolean {
-  const nutrients: Array<keyof MacroTotals> = ["calories", "protein", "carbs", "fat"];
-  return nutrients.every((key) => {
-    const remaining = Math.max(0, valid(balance.target[key]) - valid(balance.consumed[key]));
-    const amount = Math.max(0, valid(candidate[key]));
-    return amount <= remaining * 1.05 + 1e-6;
-  });
+  const remaining = (key: keyof MacroTotals) =>
+    Math.max(0, valid(balance.target[key]) - valid(balance.consumed[key]));
+  const amount = (key: keyof MacroTotals) => Math.max(0, valid(candidate[key]));
+
+  // Calories may exceed the remaining daily budget by at most 5%.
+  if (amount("calories") > remaining("calories") * 1.05 + 1e-6) return false;
+
+  // Protein, carbohydrates and fat each have a fixed allowance of 5 grams.
+  return (["protein", "carbs", "fat"] as const).every(
+    (key) => amount(key) <= remaining(key) + 5 + 1e-6,
+  );
 }
 
 export function isRecommendationMacroEligible(
