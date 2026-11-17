@@ -336,6 +336,12 @@ export const api = {
         404: errorSchemas.notFound,
       },
     },
+    rateEntry: {
+      method: "POST" as const,
+      path: "/api/meal-plan/entry/:id/rating",
+      input: z.object({ rating: z.number().int().min(1).max(5) }),
+      responses: { 200: z.object({ success: z.boolean() }), 400: errorSchemas.validation, 404: errorSchemas.notFound },
+    },
     updateEntry: {
       method: 'PATCH' as const,
       path: '/api/meal-plan/entry/:id',
