@@ -2,6 +2,7 @@ export type MacroTotals = { calories: number; protein: number; carbs: number; fa
 export type PersonDayBalance = { target: MacroTotals; consumed: MacroTotals };
 export type RecommendationHistoryEvent = { date: string; eaten: boolean; mealType?: string };
 export type RecommendationFeedback = { action: "LIKE" | "DISLIKE" | "TOO_OFTEN" | "HIDE"; rating?: number | null; createdAt: string };
+export type MealRatingEvent = { rating: number; date: string };
 export type RecommendationCandidate = {
   id: number;
   name: string;
@@ -12,11 +13,13 @@ export type RecommendationCandidate = {
   nutritionB: MacroTotals;
   produceGramsA?: number;
   produceGramsB?: number;
+  ratingHistoryA?: MealRatingEvent[];
+  ratingHistoryB?: MealRatingEvent[];
   ingredientIds?: number[];
   history: RecommendationHistoryEvent[];
   feedback?: RecommendationFeedback | null;
 };
-export type RecommendationScore = { recipeId: number; score: number; reasons: string[]; breakdown: { macro: number; history: number; preferences: number; variety: number; plan: number; produce: number } };
+export type RecommendationScore = { recipeId: number; score: number; reasons: string[]; breakdown: { macro: number; history: number; preferences: number; variety: number; plan: number; produce: number; rating: number } };
 
 const clamp = (value: number, min = 0, max = 100) => Math.max(min, Math.min(max, value));
 const valid = (value: unknown) => Number.isFinite(Number(value)) ? Number(value) : 0;
@@ -108,16 +111,35 @@ export function scoreRecipeRecommendations(input: {
         ? valid(candidate.produceGramsB)
         : Math.max(valid(candidate.produceGramsA), valid(candidate.produceGramsB));
     const produce = produceGrams >= 100 ? 100 : 0;
-    const breakdown = { macro, history, preferences, variety, plan, produce };
+    const ratingEvents = targetPerson === "A"
+      ? candidate.ratingHistoryA || []
+      : targetPerson === "B"
+        ? candidate.ratingHistoryB || []
+        : [...(candidate.ratingHistoryA || []), ...(candidate.ratingHistoryB || [])];
+    const weightedRatings = ratingEvents
+      .filter((event) => Number.isFinite(Number(event.rating)) && Number(event.rating) >= 1 && Number(event.rating) <= 5)
+      .map((event) => ({ rating: Number(event.rating), weight: Math.exp(-dayAge(event.date, input.date) / 45) }));
+    const ratingWeight = weightedRatings.reduce((sum, event) => sum + event.weight, 0);
+    const ratingAverage = ratingWeight > 0
+      ? weightedRatings.reduce((sum, event) => sum + event.rating * event.weight, 0) / ratingWeight
+      : 3;
+    // A small confidence ramp prevents one isolated rating from dominating the rank.
+    const rating = ratingWeight > 0
+      ? Math.round((ratingAverage - 3) * 6 * Math.min(1, ratingWeight / 3))
+      : 0;
+    const breakdown = { macro, history, preferences, variety, plan, produce, rating };
     let score = input.mealType
       ? history * 0.55 + preferences * 0.20 + variety * 0.20 + plan * 0.05
       : macro * 0.35 + history * 0.25 + preferences * 0.15 + variety * 0.15 + plan * 0.10;
     if (produce > 0) score += 12;
+    score += rating;
     const reasons: string[] = [];
     if (macro >= 70) reasons.push("Dobrze pasuje do pozostałego bilansu makro");
     if (targetPerson !== "both" && bothFit) reasons.push("Pasuje do bilansu obu osób");
     if (history >= 65) reasons.push("Pasuje do dotychczasowych wyborów");
     if (produce > 0) reasons.push("Co najmniej 100 g warzyw lub owoców w porcji");
+    if (rating >= 5) reasons.push("Wysokie oceny z poprzednich posiłków");
+    else if (rating <= -5) reasons.push("Niższe oceny z poprzednich posiłków");
     if (candidate.isFavorite) reasons.push("Przepis oznaczony jako ulubiony");
     if (recentEaten) reasons.push("Ostatnio jedzony – ograniczono jego pozycję");
     if (!recentEaten && !recentPlanned) reasons.push("Daje większą różnorodność");
