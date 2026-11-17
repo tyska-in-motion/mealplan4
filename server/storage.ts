@@ -83,7 +83,7 @@ export interface IStorage {
   getArchivedSharedMealBatches(): Promise<any[]>;
   getSharedMealBatchLogs(batchId: number): Promise<SharedMealBatchLog[]>;
   createSharedMealBatch(input: CreateSharedMealBatchRequest): Promise<SharedMealBatch>;
-  updateSharedMealBatch(id: number, updates: Partial<Pick<SharedMealBatch, "totalServings" | "note">> & { ingredients?: { ingredientId: number; amount: number; scalingType?: "LINEAR" | "FIXED" | "STEP" | "FORMULA" }[] }): Promise<SharedMealBatch>;
+  updateSharedMealBatch(id: number, updates: Partial<Pick<SharedMealBatch, "totalServings" | "finishedWeightGrams" | "note">> & { ingredients?: { ingredientId: number; amount: number; scalingType?: "LINEAR" | "FIXED" | "STEP" | "FORMULA" }[] }): Promise<SharedMealBatch>;
   archiveSharedMealBatch(id: number, isArchived: boolean): Promise<SharedMealBatch>;
   deleteSharedMealBatch(id: number): Promise<void>;
 
@@ -1588,6 +1588,7 @@ export class DatabaseStorage implements IStorage {
 
     const payload: Partial<SharedMealBatch> = {};
     if (updates.totalServings !== undefined) payload.totalServings = updates.totalServings;
+    if (updates.finishedWeightGrams !== undefined) payload.finishedWeightGrams = updates.finishedWeightGrams;
     if (updates.note !== undefined) payload.note = updates.note;
     if (updates.ingredients !== undefined) {
       const previousSnapshot = previous.recipeSnapshot || this.buildRecipeSnapshot(await this.getRecipe(previous.recipeId));
