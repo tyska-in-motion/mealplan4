@@ -106,7 +106,7 @@ export function scoreRecipeRecommendations(input: {
       ? valid(candidate.produceGramsA)
       : targetPerson === "B"
         ? valid(candidate.produceGramsB)
-        : (valid(candidate.produceGramsA) + valid(candidate.produceGramsB)) / 2;
+        : Math.max(valid(candidate.produceGramsA), valid(candidate.produceGramsB));
     const produce = produceGrams >= 100 ? 100 : 0;
     const breakdown = { macro, history, preferences, variety, plan, produce };
     let score = input.mealType
