@@ -3187,6 +3187,15 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
 
 
 
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={addRecipeForBothPeople}
+                    onChange={(e) => setAddRecipeForBothPeople(e.target.checked)}
+                  />
+                  Dodaj ten przepis od razu dla obu osób
+                </label>
+
                 <DialogFooter className="gap-2 sm:gap-0">
                   <Button className="max-sm:w-full" variant="ghost" onClick={closeAddDialog} disabled={isAddingRecipe}>Anuluj</Button>
                   <Button
