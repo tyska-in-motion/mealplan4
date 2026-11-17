@@ -12,6 +12,8 @@ export type RecipeRecommendation = {
     name: string;
     imageUrl?: string | null;
     prepTime?: number | null;
+    defaultServingsA?: number;
+    defaultServingsB?: number;
     tags?: string[] | null;
     nutritionA: { calories: number; protein: number; carbs: number; fat: number };
     nutritionB: { calories: number; protein: number; carbs: number; fat: number };
