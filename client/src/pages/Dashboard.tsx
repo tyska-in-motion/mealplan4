@@ -1777,7 +1777,7 @@ export default function Dashboard() {
                   const key = `${String(meal.date).slice(0, 10)}::${recipeName.trim().toLocaleLowerCase("pl-PL")}`;
                   if (!distinctMeals.has(key)) distinctMeals.set(key, { recipeName, date: String(meal.date).slice(0, 10) });
                 });
-                const meals = [...distinctMeals.values()].sort((a, b) => a.date.localeCompare(b.date) || a.recipeName.localeCompare(b.recipeName, "pl"));
+                const meals = Array.from(distinctMeals.values()).sort((a, b) => a.date.localeCompare(b.date) || a.recipeName.localeCompare(b.recipeName, "pl"));
 
                 return (
                   <article key={item.groupKey} className="rounded-xl border border-emerald-200/80 bg-white/85 p-3 dark:border-emerald-900/60 dark:bg-background/70">
