@@ -566,7 +566,12 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
   const [recipeTab, setRecipeTab] = useState<"all" | "recommended" | "rare">("all");
 
   const { data: recipes, isFetching: isFetchingRecipes } = useRecipeSearchIndex(isAddOpen || isSharedView);
-  const { data: mealRecommendations } = useRecipeRecommendations(selectedDateStr || "", selectedMealType, isAddOpen && !isSharedView && !!selectedDateStr && !!selectedMealType);
+  const { data: mealRecommendations } = useRecipeRecommendations(
+    selectedDateStr || "",
+    selectedMealType,
+    isAddOpen && !isSharedView && !!selectedDateStr && !!selectedMealType,
+    addRecipeForBothPeople ? "both" : selectedPerson,
+  );
   const filteredSharedRecipes = useMemo(() => {
     const normalizedQuery = normalizeSearchText(sharedRecipeSearch);
     if (!normalizedQuery) return recipes || [];
