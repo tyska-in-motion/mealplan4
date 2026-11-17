@@ -6,7 +6,7 @@ import { format, addDays, subDays } from "date-fns";
 import { pl } from "date-fns/locale";
 import { Layout } from "@/components/Layout";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
-import { Flame, CheckCircle2, Circle, CalendarClock, CalendarDays, ChevronLeft, ChevronRight, Settings2, Wallet, Eye, NotebookText, Check, ChevronsUpDown, X, PlusCircle, Plus, Minus } from "lucide-react";
+import { Flame, CheckCircle2, Circle, CalendarClock, CalendarDays, ChevronLeft, ChevronRight, Settings2, Wallet, Eye, NotebookText, Check, ChevronsUpDown, X, PlusCircle, Plus, Minus, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Link } from "wouter";
 import { lazy, Suspense, type MouseEvent, type PointerEvent, useEffect, useMemo, useState } from "react";
@@ -47,7 +47,9 @@ export default function Dashboard() {
   const dateStr = format(date, "yyyy-MM-dd");
   const todayStr = format(new Date(), "yyyy-MM-dd");
   const { data: dayPlan, isLoading: isLoadingPlan } = useDayPlanSummary(dateStr);
-  const { mutate: toggleEaten } = useToggleEaten();
+  const { mutateAsync: toggleEatenAsync } = useToggleEaten();
+  const [ratingMeal, setRatingMeal] = useState<any | null>(null);
+  const [isSavingMealRating, setIsSavingMealRating] = useState(false);
   const handleEatenButtonPointerDown = (event: PointerEvent<HTMLButtonElement>) => {
     // Keep the touch on the checkbox button itself, so mobile browsers do not
     // treat a near-miss/drag as interaction with the recipe row next to it.
@@ -56,8 +58,41 @@ export default function Dashboard() {
   const handleEatenButtonClick = (event: MouseEvent<HTMLButtonElement>, meal: any) => {
     event.preventDefault();
     event.stopPropagation();
-    toggleEaten({ id: meal.id, isEaten: !meal.isEaten });
+    if (meal.isEaten) {
+      void toggleEatenAsync({ id: meal.id, isEaten: false });
+      return;
+    }
+    if (meal.recipeId && meal.recipe) {
+      setRatingMeal(meal);
+      return;
+    }
+    void toggleEatenAsync({ id: meal.id, isEaten: true });
   };
+  const completeEatenWithRating = async (rating: number | null) => {
+    if (!ratingMeal || isSavingMealRating) return;
+    const meal = ratingMeal;
+    setIsSavingMealRating(true);
+    try {
+      await toggleEatenAsync({ id: meal.id, isEaten: true });
+      if (rating !== null) {
+        const response = await fetchWithTimeout(`/api/meal-plan/entry/${meal.id}/rating`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rating }),
+        });
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.message || "Nie udało się zapisać oceny.");
+        }
+      }
+      setRatingMeal(null);
+    } catch (error: any) {
+      toast({ title: "Błąd", description: error?.message || "Nie udało się oznaczyć posiłku jako zjedzony.", variant: "destructive" });
+    } finally {
+      setIsSavingMealRating(false);
+    }
+  };
+
   const [viewingRecipe, setViewingRecipe] = useState<any>(null);
   const [viewingMeal, setViewingMeal] = useState<any>(null);
   const [viewingPlannedServings, setViewingPlannedServings] = useState<number | undefined>(undefined);
@@ -2072,6 +2107,34 @@ export default function Dashboard() {
           </>
         )}
       </div>
+
+      <Dialog open={!!ratingMeal} onOpenChange={(open) => { if (!open && !isSavingMealRating) setRatingMeal(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Jak oceniasz ten posiłek?</DialogTitle>
+            <DialogDescription>
+              {ratingMeal?.recipe?.name || "Przepis"} · {ratingMeal?.person === "B" ? "Tysia" : "Mati"}
+              <br />
+              Ocena dotyczy tylko tego konkretnego posiłku. Możesz też pominąć ocenę.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-center gap-2 py-3">
+            {[1, 2, 3, 4, 5].map((rating) => (
+              <Button key={rating} type="button" variant="ghost" size="icon" className="h-11 w-11"
+                disabled={isSavingMealRating}
+                aria-label={`Oceń na ${rating} gwiazdek`}
+                onClick={() => void completeEatenWithRating(rating)}>
+                <Star className="h-7 w-7 fill-amber-400 text-amber-500" />
+                <span className="sr-only">{rating}</span>
+              </Button>
+            ))}
+          </div>
+          <DialogFooter className="sm:justify-between">
+            <Button type="button" variant="outline" disabled={isSavingMealRating} onClick={() => void completeEatenWithRating(null)}>Oznacz bez oceny</Button>
+            <Button type="button" variant="ghost" disabled={isSavingMealRating} onClick={() => setRatingMeal(null)}>Anuluj</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isEditingIngredients} onOpenChange={setIsEditingIngredients}>
         <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col bg-white">
