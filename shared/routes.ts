@@ -467,7 +467,7 @@ export const api = {
     list: {
       method: "GET" as const,
       path: "/api/recommendations",
-      input: z.object({ date: z.string(), limit: z.coerce.number().int().min(1).max(30).optional() }),
+      input: z.object({ date: z.string(), limit: z.coerce.number().int().min(1).max(30).optional(), mealType: z.enum(["breakfast", "snack", "lunch", "dinner"]).optional() }),
       responses: { 200: z.custom<any>() },
     },
     feedback: {
