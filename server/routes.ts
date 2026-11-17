@@ -1856,8 +1856,10 @@ export async function registerRoutes(
     for (const entry of todayEntries) {
       const person = entry.person === "B" ? "B" : "A";
       const rows = entry.ingredients?.length ? entry.ingredients : entry.recipe?.ingredients || [];
+      const occurrenceTracker = new Map<number, number>();
+      const normalizedRows = rows.map((row: any) => resolveIngredientForScaling(entry, row, occurrenceTracker));
       const values = rows.length
-        ? totals(rows, Number(entry.servings) || 1, Number(entry.recipe?.servings) || 1)
+        ? totals(normalizedRows, Number(entry.servings) || 1, Number(entry.recipe?.servings) || 1)
         : {
             calories: Number(entry.customCalories || 0) * (Number(entry.servings) || 1),
             protein: Number(entry.customProtein || 0) * (Number(entry.servings) || 1),
@@ -1874,12 +1876,26 @@ export async function registerRoutes(
       if (batch.length < 100) break;
     }
     const historyByRecipe = new Map<number, any[]>();
+    const eatenIngredientCounts = new Map<number, number>();
     for (const entry of historyEntries) {
-      if (!entry.recipeId) continue;
-      const list = historyByRecipe.get(Number(entry.recipeId)) || [];
-      list.push({ date: String(entry.date).slice(0, 10), eaten: !!entry.isEaten });
-      historyByRecipe.set(Number(entry.recipeId), list);
+      if (entry.recipeId) {
+        const list = historyByRecipe.get(Number(entry.recipeId)) || [];
+        list.push({ date: String(entry.date).slice(0, 10), eaten: !!entry.isEaten });
+        historyByRecipe.set(Number(entry.recipeId), list);
+      }
+      if (entry.isEaten) {
+        const ingredientRows = entry.ingredients?.length ? entry.ingredients : entry.recipe?.ingredients || [];
+        for (const row of ingredientRows) {
+          const ingredientId = Number(row.ingredientId);
+          if (Number.isInteger(ingredientId) && ingredientId > 0) {
+            eatenIngredientCounts.set(ingredientId, (eatenIngredientCounts.get(ingredientId) || 0) + 1);
+          }
+        }
+      }
     }
+    const ingredientAffinity = Object.fromEntries(
+      Array.from(eatenIngredientCounts.entries()).map(([id, count]) => [id, Math.min(20, Math.log1p(count) * 8)]),
+    );
     const feedbackRows = Array.isArray(feedbackState) ? feedbackState : [];
     const feedbackByRecipe = new Map<number, any>();
     for (const item of feedbackRows) feedbackByRecipe.set(Number(item.recipeId), item);
@@ -1921,6 +1937,7 @@ export async function registerRoutes(
       },
       date,
       plannedRecipeIds,
+      ingredientAffinity,
       limit: input.limit || 10,
     });
     const byId = new Map(mapped.map((recipe) => [recipe.id, recipe]));
