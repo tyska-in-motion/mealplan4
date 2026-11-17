@@ -37,6 +37,7 @@ export async function fetchMealEntryFull(id: number) {
 
 export function useAddMealEntry() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   return useMutation({
     mutationFn: async (data: CreateMealEntryRequest & { createSharedBatch?: boolean; sharedBatchServings?: number }) => {
       const res = await fetchWithTimeout(api.mealPlan.addEntry.path, {
@@ -56,6 +57,13 @@ export function useAddMealEntry() {
       queryClient.invalidateQueries({ queryKey: [api.mealPlan.getDaySummary.path, variables.date] });
       queryClient.invalidateQueries({ queryKey: [api.mealPlan.getShoppingList.path] });
       queryClient.invalidateQueries({ queryKey: [api.sharedMeals.list.path] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Nie udało się dodać przepisu",
+        description: error.message || "Wystąpił błąd zapisu.",
+        variant: "destructive",
+      });
     },
   });
 }
