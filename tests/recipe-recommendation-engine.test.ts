@@ -33,7 +33,7 @@ test("recipes eaten in the last week receive a variety penalty", () => {
   assert.ok(repeated.score < baseline.score);
 });
 
-test("hard macro tolerance allows at most 5% above each remaining daily limit", () => {
+test("recommendations allow 5% extra calories and 5g extra per macro", () => {
   const candidate = {
     id: 10, name: "Within tolerance",
     nutritionA: { calories: 1050, protein: 84, carbs: 105, fat: 36.75 },
@@ -46,16 +46,18 @@ test("hard macro tolerance allows at most 5% above each remaining daily limit", 
   assert.equal(results.length, 1);
 });
 
-test("hard macro tolerance excludes a recipe exceeding any remaining limit by more than 5%", () => {
+test("recommendations reject any nutrient exceeding its exact tolerance", () => {
   const within = {
     id: 11, name: "Within", nutritionA: { calories: 1050, protein: 84, carbs: 105, fat: 36.75 },
     nutritionB: { calories: 1050, protein: 84, carbs: 105, fat: 36.75 }, history: [],
   };
   const overCalories = { ...within, id: 12, nutritionA: { ...within.nutritionA, calories: 1051 } };
-  const overProteinForB = { ...within, id: 13, nutritionB: { ...within.nutritionB, protein: 84.1 } };
+  const overProtein = { ...within, id: 13, nutritionA: { ...within.nutritionA, protein: 85.01 } };
+  const overCarbs = { ...within, id: 14, nutritionA: { ...within.nutritionA, carbs: 105.01 } };
+  const overFat = { ...within, id: 15, nutritionB: { ...within.nutritionB, fat: 40.01 } };
   const results = scoreRecipeRecommendations({
     date: "2026-11-17", balances: { A: balance, B: balance },
-    candidates: [within, overCalories, overProteinForB],
+    candidates: [within, overCalories, overProtein, overCarbs, overFat],
   });
   assert.deepEqual(results.map((item) => item.recipeId), [11]);
 });
