@@ -141,10 +141,18 @@ export default function Dashboard() {
     },
   });
   const hasActiveMealPrep = (mealPrepOpportunities?.items?.length || 0) > 0;
-  const selectedQuickRecipe = useMemo(
-    () => (quickRecipeDetails?.id === quickRecipeId ? quickRecipeDetails : null) || recipes?.find((recipe: any) => recipe.id === quickRecipeId),
-    [recipes, quickRecipeId, quickRecipeDetails]
-  );
+  const selectedQuickRecipe = useMemo(() => {
+    const recipeFromList = recipes?.find((recipe: any) => recipe.id === quickRecipeId) || null;
+    const loadedDetails = quickRecipeDetails?.id === quickRecipeId ? quickRecipeDetails : null;
+    if (!loadedDetails) return recipeFromList;
+    // The details endpoint may omit precomputed nutrition stats present in the recipe list.
+    // Preserve those stats when the full recipe response does not include them.
+    return {
+      ...recipeFromList,
+      ...loadedDetails,
+      stats: loadedDetails.stats ?? recipeFromList?.stats,
+    };
+  }, [recipes, quickRecipeId, quickRecipeDetails]);
   const quickRecipeVariants = useMemo(() => getAvailableVariants(selectedQuickRecipe?.ingredients || []), [selectedQuickRecipe]);
   const isQuickRecipeVariant = selectedQuickRecipe?.portioningMode === "individual" || quickRecipeVariants.length > 0;
   const quickRecipeNutritionPreview = useMemo(() => {
