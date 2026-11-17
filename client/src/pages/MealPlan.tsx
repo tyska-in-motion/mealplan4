@@ -4075,7 +4075,7 @@ function DaySection({ day, sectionId, recipes, userSettings, allAvailableIngredi
                             className={cn(
                               "group relative flex flex-col gap-1.5 overflow-hidden rounded-lg border p-1.5 transition-colors",
                               entry.isEaten
-                                ? "bg-emerald-100 border-emerald-300"
+                                ? "bg-emerald-100 border-emerald-300 dark:bg-emerald-950/50 dark:border-emerald-800"
                                 : "bg-background border-border",
                               draggedEntryId === Number(entry.id) && "opacity-60",
                               touchMoveEntry?.id === Number(entry.id) && (touchMoveEntry.mode === "copy" ? "ring-2 ring-emerald-500/60" : "ring-2 ring-primary/60"),
