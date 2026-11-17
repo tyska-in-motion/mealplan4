@@ -2297,7 +2297,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
                         onBlur={(e) => {
                           const raw = e.currentTarget.value.trim();
                           const nextWeight = raw === "" ? null : Number(raw);
-                          if (raw !== "" && (!Number.isFinite(nextWeight) || nextWeight <= 0)) return;
+                          if (raw !== "" && (nextWeight === null || !Number.isFinite(nextWeight) || nextWeight <= 0)) return;
                           if ((Number(batch.finishedWeightGrams) || null) !== nextWeight) {
                             updateBatch.mutate({ id: Number(batch.id), updates: { finishedWeightGrams: nextWeight } });
                           }
