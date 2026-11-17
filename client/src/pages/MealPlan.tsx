@@ -1082,7 +1082,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
     });
   }, [recipes, searchQuery, selectedTag, recipeSort]);
 
-  const recommendedRecipeIds = useMemo(() => new Set((mealRecommendations?.recommendations || []).slice(0, 4).map((item: any) => Number(item.recipeId)), [mealRecommendations]);
+  const recommendedRecipeIds = useMemo(() => new Set((mealRecommendations?.recommendations || []).slice(0, 4).map((item: any) => Number(item.recipeId))), [mealRecommendations]);
 
   const displayedRecipes = useMemo(() => {
     if (!mealRecommendations?.recommendations?.length || searchQuery.trim() || selectedTag || recipeSort !== "popular") return filteredRecipes;
