@@ -1915,7 +1915,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
 
       const mealRows = [
         { key: "breakfast", label: "Śniadanie" },
-        { key: "snack", label: "LUNCH" },
+        { key: "snack", label: "Lunch" },
         { key: "lunch", label: "Obiad" },
         { key: "dinner", label: "Kolacja" },
       ] as const;
@@ -2311,7 +2311,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
                   <div className="mt-3 grid gap-2 md:grid-cols-5">
                     <Input type="date" value={form.date} onChange={(e) => updateAllocationForm(batch.id, { date: e.target.value })} />
                     <select className="h-10 rounded-md border border-input bg-background px-3 text-foreground" value={form.mealType} onChange={(e) => updateAllocationForm(batch.id, { mealType: e.target.value })}>
-                      <option value="breakfast">Śniadanie</option><option value="snack">LUNCH</option><option value="lunch">Obiad</option><option value="dinner">Kolacja</option>
+                      <option value="breakfast">Śniadanie</option><option value="snack">Lunch</option><option value="lunch">Obiad</option><option value="dinner">Kolacja</option>
                     </select>
                     <select className="h-10 rounded-md border border-input bg-background px-3 text-foreground" value={form.person} onChange={(e) => updateAllocationForm(batch.id, { person: (e.target.value as "A" | "B") })}>
                       <option value="A">Tysia</option><option value="B">Mati</option>
@@ -2770,7 +2770,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
           <DialogHeader>
             <DialogTitle className="break-words pr-8 text-base leading-snug sm:text-lg">Dodaj do posiłku: {
               selectedMealType === "breakfast" ? "Śniadanie" :
-              selectedMealType === "snack" ? "LUNCH" :
+              selectedMealType === "snack" ? "Lunch" :
               selectedMealType === "lunch" ? "Obiad" : "Kolacja"
             } ({selectedDateStr}) • {personName[selectedPerson]}</DialogTitle>
           </DialogHeader>
@@ -3823,7 +3823,7 @@ function DaySection({ day, sectionId, recipes, userSettings, allAvailableIngredi
 
   const mealTypeLabels: Record<string, string> = {
     breakfast: "Śniadanie",
-    snack: "LUNCH",
+    snack: "Lunch",
     lunch: "Obiad",
     dinner: "Kolacja",
   };
