@@ -4098,7 +4098,7 @@ function DaySection({ day, sectionId, recipes, userSettings, allAvailableIngredi
                               )}
                               <div className="min-w-0 flex-1">
                                 <div className="flex min-w-0 items-start gap-1">
-                                  <p className={cn("min-w-0 flex-1 truncate text-sm font-semibold leading-snug", entry.isEaten && "line-through text-muted-foreground")} title={entry.recipe?.name || entry.customName}>
+                                  <p className={cn("min-w-0 flex-1 truncate text-sm font-semibold leading-snug", entry.isEaten && "line-through text-muted-foreground dark:text-emerald-100")} title={entry.recipe?.name || entry.customName}>
                                     {entry.recipe?.name || entry.customName}
                                   </p>
                                   {entry.recipe && (
