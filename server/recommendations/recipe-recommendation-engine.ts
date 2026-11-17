@@ -79,7 +79,7 @@ export function scoreRecipeRecommendations(input: {
     }
     if (candidate.feedback?.action === "TOO_OFTEN") score -= 18;
     if (candidate.feedback?.action === "HIDE") score = 0;
-    if (planned.has(candidate.id)) reasons.push("Przepis jest już w planie");
+    if (planned.has(candidate.id)) { reasons.push("Przepis jest już w planie"); score = 0; }
     return { recipeId: candidate.id, score: Math.round(clamp(score)), reasons, breakdown };
   });
   return results
