@@ -181,6 +181,7 @@ export const sharedMealBatches = pgTable("shared_meal_batches", {
   id: serial("id").primaryKey(),
   recipeId: integer("recipe_id").notNull(),
   totalServings: real("total_servings").notNull().default(1),
+  finishedWeightGrams: real("finished_weight_grams"),
   note: text("note"),
   recipeSnapshot: jsonb("recipe_snapshot").$type<RecipeSnapshot>(),
   isArchived: boolean("is_archived").notNull().default(false),
@@ -209,6 +210,7 @@ export const mealEntries = pgTable("meal_entries", {
   mealType: text("meal_type").notNull(), // breakfast, lunch, dinner, snack
   person: text("person").notNull().default("A"), // A or B
   servings: real("servings").notNull().default(1),
+  consumedWeightGrams: real("consumed_weight_grams"),
   cookedBatchId: integer("cooked_batch_id"),
   recipeSnapshot: jsonb("recipe_snapshot").$type<RecipeSnapshot>(),
   portionVariant: text("portion_variant"),
