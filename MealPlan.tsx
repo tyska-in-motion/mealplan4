@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Layout } from "@/components/Layout";
 import { format, addDays, subDays, eachDayOfInterval } from "date-fns";
 import { pl } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Plus, X, CheckCircle2, Circle, Minus, Eye, Carrot, Copy, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X, CheckCircle2, Circle, Minus, Eye, Carrot, Copy, Trash2, Star } from "lucide-react";
 import { useDayPlan, useAddMealEntry, useDeleteMealEntry, useToggleEaten, useUpdateMealEntry, useCopyDayPlan } from "@/hooks/use-meal-plan";
 import { useRecipes } from "@/hooks/use-recipes";
 import { useIngredients } from "@/hooks/use-ingredients";
@@ -1519,6 +1519,7 @@ export default function MealPlan() {
 
 function DaySection({ day, sectionId, recipes, onAddMeal, onAddCustom, onAddIngredient, onDeleteMeal, onToggleEaten, onUpdateEntry, onViewRecipe, onViewPlannedRecipe }: any) {
   const [servingInputs, setServingInputs] = useState<Record<number, string>>({});
+  const [ratingEntryId, setRatingEntryId] = useState<number | null>(null);
   const [selectedEntries, setSelectedEntries] = useState<Record<number, boolean>>({});
   const [draggedEntryId, setDraggedEntryId] = useState<number | null>(null);
   const [dragOverSlot, setDragOverSlot] = useState<string | null>(null);
@@ -2089,9 +2090,20 @@ function DaySection({ day, sectionId, recipes, onAddMeal, onAddCustom, onAddIngr
                             </div>
 
                             <div className="flex items-center">
-                              <button onClick={() => onToggleEaten({ id: entry.id, isEaten: !entry.isEaten })} className={cn("p-1 rounded-md transition-colors", entry.isEaten ? "text-primary bg-primary/10" : "text-muted-foreground hover:bg-muted")}>
+                              <button onClick={() => { const nextEaten = !entry.isEaten; onToggleEaten({ id: entry.id, isEaten: nextEaten }); setRatingEntryId(nextEaten && entry.recipeId ? Number(entry.id) : null); }} className={cn("p-1 rounded-md transition-colors", entry.isEaten ? "text-primary bg-primary/10" : "text-muted-foreground hover:bg-muted")}>
                                 {entry.isEaten ? <CheckCircle2 className="w-4 h-4" /> : <Circle className="w-4 h-4" />}
                               </button>
+                              {ratingEntryId === Number(entry.id) && entry.recipeId && (
+                                <div className="absolute right-8 z-20 flex items-center gap-1 rounded-md border bg-background px-2 py-1 shadow-md">
+                                  <span className="mr-1 text-[10px] text-muted-foreground">Oceń:</span>
+                                  {[1, 2, 3, 4, 5].map((value) => (
+                                    <button key={value} aria-label={`Ocena ${value} na 5`} onClick={() => { onUpdateEntry(entry.id, { rating: value }); setRatingEntryId(null); }} className="p-0.5 text-amber-500 hover:scale-110 transition-transform">
+                                      <Star className={cn("h-4 w-4", Number(entry.rating || 0) >= value ? "fill-current" : "")} />
+                                    </button>
+                                  ))}
+                                  <button onClick={() => setRatingEntryId(null)} className="ml-1 text-[10px] text-muted-foreground hover:text-foreground">Pomiń</button>
+                                </div>
+                              )}
 
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
