@@ -3018,7 +3018,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
                 ))
               ) : (
                 <div className="text-center py-8 text-muted-foreground italic text-sm">
-                  Nie znaleziono przepisów spełniających kryteria
+                  {recipeTab === "recommended" ? "Brak polecanych przepisów dla tego posiłku i dnia." : recipeTab === "rare" ? "Nie znaleziono rzadko jedzonych przepisów." : "Nie znaleziono przepisów spełniających kryteria."}
                 </div>
               )}
             </div>
