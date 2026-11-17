@@ -376,7 +376,7 @@ export async function ensureDbCompat() {
      WHERE table_schema = current_schema()
        AND table_name = 'stats_day_exclusions'
        AND column_name = 'person'`
-  )).rowCount > 0;
+  ))?.rowCount > 0;
 
   await pool.query(`CREATE TABLE IF NOT EXISTS body_measurements (
     id serial PRIMARY KEY,
