@@ -28,7 +28,7 @@ export function useRecipeRecommendations(date: string, mealType?: string | null,
       const url = buildUrl(api.recommendations.list.path, { date, ...(mealType ? { mealType } : {}) });
       const response = await fetchWithTimeout(url);
       if (!response.ok) throw new Error("Nie udało się pobrać rekomendacji");
-      return response.json() as Promise<{ date: string; recommendations: RecipeRecommendation[] }>;
+      return response.json() as Promise<{ date: string; macroEligibleRecipeIds: number[]; recommendations: RecipeRecommendation[] }>;
     },
     staleTime: 60_000,
   });
