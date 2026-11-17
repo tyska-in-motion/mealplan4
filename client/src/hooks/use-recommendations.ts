@@ -25,10 +25,10 @@ export function useRecipeRecommendations(date: string, mealType?: string | null,
     queryKey: [api.recommendations.list.path, date, mealType || "all", targetPerson],
     enabled,
     queryFn: async () => {
-      const url = buildUrl(api.recommendations.list.path, { date, targetPerson, ...(mealType ? { mealType } : {}) });
+      const url = buildUrl(api.recommendations.list.path, { date, limit: 40, targetPerson, ...(mealType ? { mealType } : {}) });
       const response = await fetchWithTimeout(url);
       if (!response.ok) throw new Error("Nie udało się pobrać rekomendacji");
-      return response.json() as Promise<{ date: string; macroEligibleRecipeIds: number[]; recommendations: RecipeRecommendation[] }>;
+      return response.json() as Promise<{ date: string; macroEligibleRecipeIds: number[]; rarelyEatenRecipeIds: number[]; recommendations: RecipeRecommendation[] }>;
     },
     staleTime: 60_000,
   });
