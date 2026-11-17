@@ -1166,6 +1166,32 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/meal-plan/entry/:id/rating", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const input = z.object({ rating: z.number().int().min(1).max(5) }).parse(req.body);
+      const entry = await storage.getMealEntryById(id);
+      if (!entry) return res.status(404).json({ message: "Nie znaleziono wpisu posiłku" });
+      if (!entry.recipeId) return res.status(400).json({ message: "Oceny można przypisywać tylko przepisom." });
+      if (!entry.isEaten) return res.status(400).json({ message: "Najpierw oznacz posiłek jako zjedzony." });
+
+      const event = {
+        id: `${id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        mealEntryId: id,
+        recipeId: Number(entry.recipeId),
+        person: entry.person === "B" ? "B" : "A",
+        date: String(entry.date).slice(0, 10),
+        rating: input.rating,
+        createdAt: new Date().toISOString(),
+      };
+      await storage.appendAppStateItem("meal-entry-ratings", event);
+      res.json({ success: true });
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ message: error.message });
+      throw error;
+    }
+  });
+
   app.patch("/api/meal-plan/entry/:id", async (req, res) => {
     try {
       const id = Number(req.params.id);
@@ -1831,11 +1857,12 @@ export async function registerRoutes(
     }).parse(req.query);
     const date = input.date;
     const startDate = new Date(Date.parse(date + "T00:00:00Z") - 59 * 86400000).toISOString().slice(0, 10);
-    const [settings, todayEntries, historyEntries, feedbackState] = await Promise.all([
+    const [settings, todayEntries, historyEntries, feedbackState, mealRatingState] = await Promise.all([
       storage.getUserSettings(),
       storage.getDayEntries(date),
       storage.getMealEntriesRange(startDate, date),
       storage.getAppState("recipe-recommendation-feedback"),
+      storage.getAppState("meal-entry-ratings"),
     ]);
     const totals = (rows: any[], servings = 1, recipeServings = 1): any => {
       const result = { calories: 0, protein: 0, carbs: 0, fat: 0 };
@@ -1903,6 +1930,19 @@ export async function registerRoutes(
     const feedbackRows = Array.isArray(feedbackState) ? feedbackState : [];
     const feedbackByRecipe = new Map<number, any>();
     for (const item of feedbackRows) feedbackByRecipe.set(Number(item.recipeId), item);
+    const mealRatingRows = Array.isArray(mealRatingState) ? mealRatingState : [];
+    const ratingsByRecipeAndPerson = new Map<number, { A: { rating: number; date: string }[]; B: { rating: number; date: string }[] }>();
+    for (const item of mealRatingRows) {
+      const recipeId = Number(item?.recipeId);
+      const rating = Number(item?.rating);
+      const ratingDate = String(item?.date || "").slice(0, 10);
+      const person = item?.person === "B" ? "B" : item?.person === "A" ? "A" : null;
+      if (!Number.isInteger(recipeId) || recipeId <= 0 || !person || !Number.isInteger(rating) || rating < 1 || rating > 5) continue;
+      if (ratingDate < startDate || ratingDate > date) continue;
+      const byPerson = ratingsByRecipeAndPerson.get(recipeId) || { A: [], B: [] };
+      byPerson[person].push({ rating, date: ratingDate });
+      ratingsByRecipeAndPerson.set(recipeId, byPerson);
+    }
     const produceGramsFor = (rows: any[], servings: number, recipeServings: number) =>
       (rows || []).reduce((sum: number, row: any) => {
         const ingredient = row?.ingredient;
@@ -1954,6 +1994,8 @@ export async function registerRoutes(
       })(),
       ingredientIds: (recipe.ingredients || []).map((row: any) => Number(row.ingredientId)).filter(Number.isFinite),
       history: historyByRecipe.get(Number(recipe.id)) || [],
+      ratingHistoryA: ratingsByRecipeAndPerson.get(Number(recipe.id))?.A || [],
+      ratingHistoryB: ratingsByRecipeAndPerson.get(Number(recipe.id))?.B || [],
       feedback: feedbackByRecipe.get(Number(recipe.id)) || null,
     }));
     const plannedRecipeIds = todayEntries.map((entry: any) => Number(entry.recipeId)).filter(Number.isFinite);

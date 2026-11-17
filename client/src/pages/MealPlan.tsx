@@ -21,7 +21,7 @@ import { calculateNutritionAmount, calculatePurchaseAmount, calculateScaledAmoun
 import { getProduceContribution } from "@shared/produce-tracking";
 import { useToast } from "@/hooks/use-toast";
 import { useRecipeRecommendations } from "@/hooks/use-recommendations";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, Star } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { api, buildUrl } from "@shared/routes";
@@ -112,7 +112,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
 
   const { mutate: addEntry } = useAddMealEntry();
   const { mutate: deleteEntry } = useDeleteMealEntry();
-  const { mutate: toggleEaten } = useToggleEaten();
+  const { mutateAsync: toggleEatenAsync } = useToggleEaten();
   const { mutate: updateMealEntry, mutateAsync: updateMealEntryAsync, isPending: isSaving } = useUpdateMealEntry();
   const { mutate: copyDayPlan, isPending: isCopyingDay } = useCopyDayPlan();
   const { data: allAvailableIngredients } = useAllIngredients(undefined, isAddOpen || isEditingIngredients);
@@ -2158,7 +2158,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
             onAddCustom={handleOpenCustom}
             onAddIngredient={handleOpenIngredient}
             onDeleteMeal={(params: any) => deleteEntry(params)}
-            onToggleEaten={(params: any) => toggleEaten(params)}
+            onToggleEaten={(params: any) => toggleEatenAsync(params)}
             onUpdateEntry={(entry: any, updates: any) => { void handleEntryUpdate(entry, updates); }}
             onDuplicateEntry={duplicateMealEntry}
             touchMoveEntry={touchMoveEntry}
@@ -3529,6 +3529,9 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
 }
 
 function DaySection({ day, sectionId, recipes, userSettings, allAvailableIngredients = [], onAddMeal, onAddCustom, onAddIngredient, onDeleteMeal, onToggleEaten, onUpdateEntry, onDuplicateEntry, touchMoveEntry, setTouchMoveEntry, onCopyDay, onSaveIdealDay, onViewRecipe, onViewWholeRecipe, onViewPlannedRecipe }: any) {
+  const [ratingEntry, setRatingEntry] = useState<any | null>(null);
+  const [isSavingRating, setIsSavingRating] = useState(false);
+  const { toast } = useToast();
   const [servingInputs, setServingInputs] = useState<Record<number, string>>({});
   const [variantOptionsByRecipe, setVariantOptionsByRecipe] = useState<Record<number, PortionVariant[]>>({});
   const [selectedVariantByEntry, setSelectedVariantByEntry] = useState<Record<number, PortionVariant>>({});
@@ -3863,7 +3866,40 @@ function DaySection({ day, sectionId, recipes, userSettings, allAvailableIngredi
   const handleEatenButtonClick = (event: MouseEvent<HTMLButtonElement>, entry: any) => {
     event.preventDefault();
     event.stopPropagation();
-    onToggleEaten({ id: entry.id, isEaten: !entry.isEaten });
+    if (entry.isEaten) {
+      void onToggleEaten({ id: entry.id, isEaten: false });
+      return;
+    }
+    if (entry.recipeId && entry.recipe) {
+      setRatingEntry(entry);
+      return;
+    }
+    void onToggleEaten({ id: entry.id, isEaten: true });
+  };
+
+  const completeEatenWithRating = async (rating: number | null) => {
+    if (!ratingEntry || isSavingRating) return;
+    const entry = ratingEntry;
+    setIsSavingRating(true);
+    try {
+      await onToggleEaten({ id: entry.id, isEaten: true });
+      if (rating !== null) {
+        const response = await fetchWithTimeout(`/api/meal-plan/entry/${entry.id}/rating`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rating }),
+        });
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.message || "Nie udało się zapisać oceny.");
+        }
+      }
+      setRatingEntry(null);
+    } catch (error: any) {
+      toast({ title: "Błąd", description: error?.message || "Nie udało się oznaczyć posiłku jako zjedzony.", variant: "destructive" });
+    } finally {
+      setIsSavingRating(false);
+    }
   };
 
   const mealTypeLabels: Record<string, string> = {
@@ -4482,6 +4518,44 @@ function DaySection({ day, sectionId, recipes, userSettings, allAvailableIngredi
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingCustomEntry(null)}>Anuluj</Button>
             <Button onClick={saveCustomEdit} disabled={!!editingCustomEntry?.ingredients?.length && (!selectedCustomIngredient || Number(customEditForm.amount) <= 0)}>Zapisz zmiany</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!ratingEntry} onOpenChange={(open) => { if (!open && !isSavingRating) setRatingEntry(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Jak oceniasz ten posiłek?</DialogTitle>
+            <DialogDescription>
+              {ratingEntry?.recipe?.name || "Przepis"} · {ratingEntry?.person === "B" ? "Tysia" : "Mati"}
+              <br />
+              Ocena dotyczy tylko tego konkretnego posiłku. Możesz też pominąć ocenę.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-center gap-2 py-3">
+            {[1, 2, 3, 4, 5].map((rating) => (
+              <Button
+                key={rating}
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-11 w-11"
+                disabled={isSavingRating}
+                aria-label={`Oceń na ${rating} ${rating === 1 ? "gwiazdkę" : "gwiazdki"}`}
+                onClick={() => void completeEatenWithRating(rating)}
+              >
+                <Star className="h-7 w-7 fill-amber-400 text-amber-500" />
+                <span className="sr-only">{rating}</span>
+              </Button>
+            ))}
+          </div>
+          <DialogFooter className="sm:justify-between">
+            <Button type="button" variant="outline" disabled={isSavingRating} onClick={() => void completeEatenWithRating(null)}>
+              Oznacz bez oceny
+            </Button>
+            <Button type="button" variant="ghost" disabled={isSavingRating} onClick={() => setRatingEntry(null)}>
+              Anuluj
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
