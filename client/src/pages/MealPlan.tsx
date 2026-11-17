@@ -1090,11 +1090,8 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
     setSelectedRecommendedBatchId(null);
     setSelectedFrequentAddons({ A: {}, B: {} });
     setAddRecipeForBothPeople(true);
-    setAddRecipeToSharedBatches(false);
     setSelectedRecipeServings(1);
     setSelectedPersonServings({ A: 1, B: 1 });
-    setBatchAllocation({ A: 50, B: 50 });
-    setSharedBatchServingsToCreate(1);
     setSelectedSuggestedRecipes({});
     setIsAddOpen(true);
   };
@@ -1159,9 +1156,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
     setSelectedRecommendedBatchId(null);
     setSelectedFrequentAddons({ A: {}, B: {} });
     setAddRecipeForBothPeople(false);
-    setAddRecipeToSharedBatches(false);
     setSelectedRecipeServings(1);
-    setSharedBatchServingsToCreate(1);
     setSelectedSuggestedRecipes({});
   };
 
@@ -2908,8 +2903,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
                         setAddRecipeForBothPeople(true);
                         setSelectedRecipeServings(getRecipeDefaultServingsForPerson(recipe, selectedPerson));
                         setSelectedPersonServings({ A: getRecipeDefaultServingsForPerson(recipe, "A"), B: getRecipeDefaultServingsForPerson(recipe, "B") });
-                        setBatchAllocation({ A: 50, B: 50 });
-                        const initialSuggestions = ((recipe?.suggestedRecipes || []) as any[]).reduce((acc: Record<string, number>, item: any) => {
+                                            const initialSuggestions = ((recipe?.suggestedRecipes || []) as any[]).reduce((acc: Record<string, number>, item: any) => {
                           const recipeId = Number(item?.recipeId);
                           const servings = Number(item?.servings) || 0;
                           if (Number.isFinite(recipeId) && recipeId > 0 && servings > 0) acc[String(recipeId)] = servings;
