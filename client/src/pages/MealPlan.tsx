@@ -4248,7 +4248,7 @@ function DaySection({ day, sectionId, recipes, userSettings, allAvailableIngredi
                                   onClick={(event) => handleEatenButtonClick(event, entry)}
                                   className={cn(
                                     "-mr-2 flex h-10 w-10 shrink-0 select-none items-center justify-center rounded-full transition-colors touch-manipulation active:bg-primary/10 sm:mr-0 sm:h-7 sm:w-7",
-                                    entry.isEaten ? "bg-emerald-200 text-emerald-800" : "text-muted-foreground hover:bg-muted"
+                                    entry.isEaten ? "bg-emerald-200 text-emerald-800 dark:bg-emerald-800 dark:text-emerald-50" : "text-muted-foreground hover:bg-muted"
                                   )}
                                   aria-label={entry.isEaten ? "Oznacz jako niezjedzone" : "Oznacz jako zjedzone"}
                                 >
