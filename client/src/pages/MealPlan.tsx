@@ -2,11 +2,11 @@ import { lazy, Suspense, useState, useMemo, useEffect, useRef, type MouseEvent, 
 import { Layout } from "@/components/Layout";
 import { format, addDays, subDays, eachDayOfInterval } from "date-fns";
 import { pl } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Plus, X, CheckCircle2, Circle, Minus, Eye, NotebookText, Carrot, Copy, Trash2, Download, GripVertical, MoreHorizontal, Pencil } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X, CheckCircle2, Circle, Minus, Eye, NotebookText, Carrot, Copy, Trash2, Download, GripVertical, MoreHorizontal, Pencil, Star } from "lucide-react";
 import { fetchMealEntryFull, useDayPlanSummary, useAddMealEntry, useDeleteMealEntry, useToggleEaten, useUpdateMealEntry, useCopyDayPlan } from "@/hooks/use-meal-plan";
 import { fetchRecipeDetails, useRecipeSearchIndex } from "@/hooks/use-recipes";
 import { useAllIngredients } from "@/hooks/use-ingredients";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -21,7 +21,7 @@ import { calculateNutritionAmount, calculatePurchaseAmount, calculateScaledAmoun
 import { getProduceContribution } from "@shared/produce-tracking";
 import { useToast } from "@/hooks/use-toast";
 import { useRecipeRecommendations } from "@/hooks/use-recommendations";
-import { Check, ChevronsUpDown, Star } from "lucide-react";
+import { Check, ChevronsUpDown } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { api, buildUrl } from "@shared/routes";
