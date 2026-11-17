@@ -47,7 +47,7 @@ export function RecipeRecommendations({ date }: { date: string }) {
                   <option value="breakfast">Śniadanie</option><option value="lunch">Obiad</option><option value="dinner">Kolacja</option><option value="snack">Przekąska</option>
                 </select>
               </div>
-              <Button size="sm" className="w-full" disabled={addMeal.isPending} onClick={() => addMeal.mutate({ date, recipeId: recipe.id, mealType: mealTypeByRecipe[recipe.id] || "lunch", person, servings: person === "A" ? 1 : 1.5 })}>Dodaj do planu</Button>
+              <Button size="sm" className="w-full" disabled={addMeal.isPending} onClick={() => addMeal.mutate({ date, recipeId: recipe.id, mealType: mealTypeByRecipe[recipe.id] || "lunch", person, servings: person === "A" ? (recipe.defaultServingsA || 1) : (recipe.defaultServingsB || 1.5) })}>Dodaj do planu</Button>
               <div className="mt-2 flex justify-end gap-1">
                 <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Lubię ten przepis" disabled={feedback.isPending} onClick={() => feedback.mutate({ recipeId: recipe.id, action: "LIKE" })}><ThumbsUp className="h-3.5 w-3.5" /></Button>
                 <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Nie lubię tego przepisu" disabled={feedback.isPending} onClick={() => feedback.mutate({ recipeId: recipe.id, action: "DISLIKE" })}><ThumbsDown className="h-3.5 w-3.5" /></Button>
