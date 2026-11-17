@@ -61,3 +61,29 @@ test("recommendations reject any nutrient exceeding its exact tolerance", () => 
   });
   assert.deepEqual(results.map((item) => item.recipeId), [11]);
 });
+
+test("meal ratings influence only the selected person's recommendations", () => {
+  const candidate = { id: 20, name: "Rated", nutritionA: { calories: 350, protein: 40, carbs: 30, fat: 8 }, nutritionB: { calories: 350, protein: 40, carbs: 30, fat: 8 }, history: [], ratingHistoryA: [{ rating: 5, date: "2026-11-16" }], ratingHistoryB: [{ rating: 1, date: "2026-11-16" }] };
+  const args = { date: "2026-11-17", balances: { A: balance, B: balance }, candidates: [candidate] };
+  const ratedA = scoreRecipeRecommendations({ ...args, targetPerson: "A" })[0];
+  const ratedB = scoreRecipeRecommendations({ ...args, targetPerson: "B" })[0];
+  assert.ok(ratedA.score > ratedB.score);
+  assert.ok(ratedA.score > 0 && ratedB.score > 0);
+});
+
+test("a single low meal rating reduces rank but does not hide a recipe", () => {
+  const candidate = { id: 21, name: "One low rating", nutritionA: { calories: 350, protein: 40, carbs: 30, fat: 8 }, nutritionB: { calories: 350, protein: 40, carbs: 30, fat: 8 }, history: [] };
+  const args = { date: "2026-11-17", balances: { A: balance, B: balance }, candidates: [candidate] };
+  const baseline = scoreRecipeRecommendations(args)[0];
+  const rated = scoreRecipeRecommendations({ ...args, candidates: [{ ...candidate, ratingHistoryA: [{ rating: 1, date: "2026-11-16" }] }], targetPerson: "A" })[0];
+  assert.ok(rated);
+  assert.ok(rated.score < baseline.score);
+});
+
+test("recent meal ratings carry more weight than older ratings", () => {
+  const candidate = { id: 22, name: "Changing feedback", nutritionA: { calories: 350, protein: 40, carbs: 30, fat: 8 }, nutritionB: { calories: 350, protein: 40, carbs: 30, fat: 8 }, history: [] };
+  const args = { date: "2026-11-17", balances: { A: balance, B: balance }, targetPerson: "A" as const };
+  const recentLow = scoreRecipeRecommendations({ ...args, candidates: [{ ...candidate, ratingHistoryA: [{ rating: 5, date: "2026-09-01" }, { rating: 1, date: "2026-11-16" }] }] })[0];
+  const recentHigh = scoreRecipeRecommendations({ ...args, candidates: [{ ...candidate, ratingHistoryA: [{ rating: 1, date: "2026-09-01" }, { rating: 5, date: "2026-11-16" }] }] })[0];
+  assert.ok(recentHigh.score > recentLow.score);
+});
