@@ -1582,7 +1582,7 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  async updateSharedMealBatch(id: number, updates: Partial<Pick<SharedMealBatch, "totalServings" | "note">> & { ingredients?: { ingredientId: number; amount: number; scalingType?: "LINEAR" | "FIXED" | "STEP" | "FORMULA" }[] }): Promise<SharedMealBatch> {
+  async updateSharedMealBatch(id: number, updates: Partial<Pick<SharedMealBatch, "totalServings" | "finishedWeightGrams" | "note">> & { ingredients?: { ingredientId: number; amount: number; scalingType?: "LINEAR" | "FIXED" | "STEP" | "FORMULA" }[] }): Promise<SharedMealBatch> {
     const previous = await db.query.sharedMealBatches.findFirst({ where: eq(sharedMealBatches.id, id) });
     if (!previous) throw new Error("Shared meal batch not found");
 
@@ -1683,8 +1683,8 @@ export class DatabaseStorage implements IStorage {
         batchId: id,
         action: "UPDATED",
         payload: {
-          before: { totalServings: previous.totalServings, note: previous.note },
-          after: { totalServings: updatedBatch[0].totalServings, note: updatedBatch[0].note },
+          before: { totalServings: previous.totalServings, finishedWeightGrams: previous.finishedWeightGrams, note: previous.note },
+          after: { totalServings: updatedBatch[0].totalServings, finishedWeightGrams: updatedBatch[0].finishedWeightGrams, note: updatedBatch[0].note },
           ingredientsUpdated: updates.ingredients !== undefined,
         },
       });
