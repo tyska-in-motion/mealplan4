@@ -216,6 +216,7 @@ export const mealEntries = pgTable("meal_entries", {
   ingredientsModified: boolean("ingredients_modified").notNull().default(false),
 
   isEaten: boolean("is_eaten").default(false),
+  rating: integer("rating"), // Optional 1-5 rating for this specific eaten meal entry/person
   createdAt: timestamp("created_at").defaultNow(),
 });
 
