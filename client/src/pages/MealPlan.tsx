@@ -20,6 +20,7 @@ const RecipeView = lazy(() => import("@/components/RecipeView").then(({ RecipeVi
 import { calculateNutritionAmount, calculatePurchaseAmount, calculateScaledAmount } from "@shared/scaling";
 import { getProduceContribution } from "@shared/produce-tracking";
 import { useToast } from "@/hooks/use-toast";
+import { RecipeRecommendations } from "@/components/recommendations/RecipeRecommendations";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -2052,6 +2053,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
 
   return (
     <Layout>
+      {!isSharedView && <RecipeRecommendations date={format(baseDate, "yyyy-MM-dd")} />}
       <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         {!isSharedView && (
           <div className="flex w-full items-center justify-between gap-2 rounded-xl border border-border bg-white p-2 shadow-sm sm:w-auto sm:justify-start sm:gap-4">
