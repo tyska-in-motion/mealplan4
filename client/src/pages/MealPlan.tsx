@@ -563,6 +563,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [recipeSort, setRecipeSort] = useState("popular");
+  const [recipeTab, setRecipeTab] = useState<"all" | "recommended" | "rare">("all");
 
   const { data: recipes, isFetching: isFetchingRecipes } = useRecipeSearchIndex(isAddOpen || isSharedView);
   const { data: mealRecommendations } = useRecipeRecommendations(selectedDateStr || "", selectedMealType, isAddOpen && !isSharedView && !!selectedDateStr && !!selectedMealType);
@@ -1082,18 +1083,26 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
     });
   }, [recipes, searchQuery, selectedTag, recipeSort]);
 
-  const recommendedRecipeIds = useMemo(() => new Set((mealRecommendations?.recommendations || []).slice(0, 4).map((item: any) => Number(item.recipeId))), [mealRecommendations]);
+  const recommendedRecipeIds = useMemo(
+    () => new Set((mealRecommendations?.recommendations || []).map((item: any) => Number(item.recipeId))),
+    [mealRecommendations],
+  );
 
   const displayedRecipes = useMemo(() => {
-    if (!mealRecommendations?.recommendations?.length || searchQuery.trim() || selectedTag || recipeSort !== "popular") return filteredRecipes;
-    const recommendedIds = mealRecommendations.recommendations.slice(0, 4).map((item: any) => Number(item.recipeId));
-    const rank = new Map(recommendedIds.map((id: number, index: number) => [id, index]));
-    return [...filteredRecipes].sort((a: any, b: any) => {
-      const rankA = rank.has(Number(a.id)) ? rank.get(Number(a.id))! : 100;
-      const rankB = rank.has(Number(b.id)) ? rank.get(Number(b.id))! : 100;
-      return rankA - rankB;
-    });
-  }, [filteredRecipes, mealRecommendations, searchQuery, selectedTag, recipeSort]);
+    if (recipeTab === "recommended") {
+      const rankedIds = (mealRecommendations?.recommendations || []).map((item: any) => Number(item.recipeId));
+      const byId = new Map((filteredRecipes || []).map((recipe: any) => [Number(recipe.id), recipe]));
+      return rankedIds.map((id: number) => byId.get(id)).filter(Boolean);
+    }
+    if (recipeTab === "rare") {
+      return [...filteredRecipes].sort((a: any, b: any) => {
+        const countDifference = (Number(a?.stats?.eatCount) || 0) - (Number(b?.stats?.eatCount) || 0);
+        if (countDifference !== 0) return countDifference;
+        return String(a?.name || "").localeCompare(String(b?.name || ""), "pl");
+      });
+    }
+    return filteredRecipes;
+  }, [filteredRecipes, mealRecommendations, recipeTab]);
 
   const handleOpenAdd = (mealType: string, dateStr: string, person: "A" | "B") => {
     setSelectedMealType(mealType);
@@ -1101,6 +1110,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
     setSearchQuery("");
     setSelectedTag(null);
     setRecipeSort("popular");
+    setRecipeTab("all");
     setSelectedPerson(person);
     setSelectedRecipeToAdd(null);
     setSelectedRecommendedBatchId(null);
@@ -2878,6 +2888,11 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
             )}
 
             <div className="flex flex-col gap-3">
+              <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted p-1" role="tablist" aria-label="Kategorie przepisów">
+                <button type="button" role="tab" aria-selected={recipeTab === "all"} onClick={() => setRecipeTab("all")} className={cn("rounded-md px-2 py-2 text-sm font-medium transition-colors", recipeTab === "all" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>Wszystkie</button>
+                <button type="button" role="tab" aria-selected={recipeTab === "recommended"} onClick={() => setRecipeTab("recommended")} className={cn("rounded-md px-2 py-2 text-sm font-medium transition-colors", recipeTab === "recommended" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>Polecane</button>
+                <button type="button" role="tab" aria-selected={recipeTab === "rare"} onClick={() => setRecipeTab("rare")} className={cn("rounded-md px-2 py-2 text-sm font-medium transition-colors", recipeTab === "rare" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>Mało jedzone</button>
+              </div>
               <input
                 type="text"
                 placeholder="Szukaj po przepisie lub składniku..."
@@ -2898,7 +2913,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
                 </SelectContent>
               </Select>
 
-              <Select value={recipeSort} onValueChange={setRecipeSort}>
+              {recipeTab === "all" && <Select value={recipeSort} onValueChange={setRecipeSort}>
                 <SelectTrigger className="h-9">
                   <SelectValue placeholder="Sortuj przepisy" />
                 </SelectTrigger>
@@ -2910,7 +2925,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
                   <SelectItem value="carbs-desc">Węglowodany / porcję (najwięcej)</SelectItem>
                   <SelectItem value="fat-desc">Tłuszcz / porcję (najwięcej)</SelectItem>
                 </SelectContent>
-              </Select>
+              </Select>}
             </div>
 
             <div className="grid gap-2 max-h-[50vh] overflow-y-auto pr-0 sm:pr-2">
