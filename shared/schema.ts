@@ -71,7 +71,6 @@ export const userSettings = pgTable("user_settings", {
   targetFatPercentageMin: integer("target_fat_percentage_min").notNull().default(30),
   targetFatPercentageMax: integer("target_fat_percentage_max").notNull().default(30),
   sharedBatchesManualOnly: boolean("shared_batches_manual_only").notNull().default(true),
-  calorieGoalMode: text("calorie_goal_mode").notNull().default("maintenance"),
 });
 
 export const userSettingsHistory = pgTable("user_settings_history", {
