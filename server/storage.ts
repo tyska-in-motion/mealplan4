@@ -1497,7 +1497,8 @@ export class DatabaseStorage implements IStorage {
     const normalizedStart = String(startDate).slice(0, 10);
     const normalizedEnd = String(endDate).slice(0, 10);
 
-    const entries = await db.query.mealEntries.findMany({
+    const rangedEntries = await db.query.mealEntries.findMany({
+      where: and(gte(mealEntries.date, normalizedStart), lte(mealEntries.date, normalizedEnd)),
       with: {
         recipe: {
           with: {
@@ -1525,11 +1526,6 @@ export class DatabaseStorage implements IStorage {
           }
         }
       }
-    });
-
-    const rangedEntries = entries.filter((entry) => {
-      const dateOnly = String(entry.date || "").slice(0, 10);
-      return dateOnly >= normalizedStart && dateOnly <= normalizedEnd;
     });
 
     return this.applyRecipeSnapshotsToEntries(rangedEntries) as MealEntryWithRecipe[];

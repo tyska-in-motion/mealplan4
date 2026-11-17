@@ -1821,6 +1821,154 @@ export async function registerRoutes(
     res.status(204).end();
   });
 
+  // Recipe recommendations
+  app.get("/api/recommendations", async (req, res) => {
+    const input = z.object({
+      date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      limit: z.coerce.number().int().min(1).max(30).optional(),
+    }).parse(req.query);
+    const date = input.date;
+    const startDate = new Date(Date.parse(date + "T00:00:00Z") - 59 * 86400000).toISOString().slice(0, 10);
+    const [settings, todayEntries, historyEntries, feedbackState] = await Promise.all([
+      storage.getUserSettings(),
+      storage.getDayEntries(date),
+      storage.getMealEntriesRange(startDate, date),
+      storage.getAppState("recipe-recommendation-feedback"),
+    ]);
+    const totals = (rows: any[], servings = 1, recipeServings = 1): any => {
+      const result = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+      for (const row of rows || []) {
+        const ingredient = row.ingredient;
+        if (!ingredient) continue;
+        const scaled = calculateScaledAmount(row, servings, recipeServings);
+        const amount = calculateNutritionAmount(scaled, ingredient) / 100;
+        result.calories += Number(ingredient.calories || 0) * amount;
+        result.protein += Number(ingredient.protein || 0) * amount;
+        result.carbs += Number(ingredient.carbs || 0) * amount;
+        result.fat += Number(ingredient.fat || 0) * amount;
+      }
+      return result;
+    };
+    const consumed: any = {
+      A: { calories: 0, protein: 0, carbs: 0, fat: 0 },
+      B: { calories: 0, protein: 0, carbs: 0, fat: 0 },
+    };
+    for (const entry of todayEntries) {
+      const person = entry.person === "B" ? "B" : "A";
+      const rows = entry.ingredients?.length ? entry.ingredients : entry.recipe?.ingredients || [];
+      const occurrenceTracker = new Map<number, number>();
+      const normalizedRows = rows.map((row: any) => resolveIngredientForScaling(entry, row, occurrenceTracker));
+      const values = rows.length
+        ? totals(normalizedRows, Number(entry.servings) || 1, Number(entry.recipe?.servings) || 1)
+        : {
+            calories: Number(entry.customCalories || 0) * (Number(entry.servings) || 1),
+            protein: Number(entry.customProtein || 0) * (Number(entry.servings) || 1),
+            carbs: Number(entry.customCarbs || 0) * (Number(entry.servings) || 1),
+            fat: Number(entry.customFat || 0) * (Number(entry.servings) || 1),
+          };
+      for (const key of ["calories", "protein", "carbs", "fat"] as const) consumed[person][key] += values[key];
+    }
+    const candidates: any[] = [];
+    for (let offset = 0; offset < 5000; offset += 100) {
+      const batch = await storage.getRecipes(undefined, undefined, 100, offset);
+      if (!batch.length) break;
+      candidates.push(...batch);
+      if (batch.length < 100) break;
+    }
+    const historyByRecipe = new Map<number, any[]>();
+    const eatenIngredientCounts = new Map<number, number>();
+    for (const entry of historyEntries) {
+      if (entry.recipeId) {
+        const list = historyByRecipe.get(Number(entry.recipeId)) || [];
+        list.push({ date: String(entry.date).slice(0, 10), eaten: !!entry.isEaten });
+        historyByRecipe.set(Number(entry.recipeId), list);
+      }
+      if (entry.isEaten) {
+        const ingredientRows = entry.ingredients?.length ? entry.ingredients : entry.recipe?.ingredients || [];
+        for (const row of ingredientRows) {
+          const ingredientId = Number(row.ingredientId);
+          if (Number.isInteger(ingredientId) && ingredientId > 0) {
+            eatenIngredientCounts.set(ingredientId, (eatenIngredientCounts.get(ingredientId) || 0) + 1);
+          }
+        }
+      }
+    }
+    const ingredientAffinity = Object.fromEntries(
+      Array.from(eatenIngredientCounts.entries()).map(([id, count]) => [id, Math.min(20, Math.log1p(count) * 8)]),
+    );
+    const feedbackRows = Array.isArray(feedbackState) ? feedbackState : [];
+    const feedbackByRecipe = new Map<number, any>();
+    for (const item of feedbackRows) feedbackByRecipe.set(Number(item.recipeId), item);
+    const mapped = candidates.map((recipe: any) => ({
+      id: Number(recipe.id),
+      name: recipe.name,
+      isFavorite: !!recipe.isFavorite,
+      tags: recipe.tags || [],
+      prepTime: recipe.prepTime,
+      defaultServingsA: Number(recipe.defaultServingsA || 1),
+      defaultServingsB: Number(recipe.defaultServingsB || 1.5),
+      nutritionA: (() => {
+        const variant = (recipe.defaultVariantA || "B") as PortionVariant;
+        const individual = recipe.portioningMode === "individual" && getAvailableVariants(recipe.ingredients || []).includes(variant);
+        const rows = individual
+          ? getIndividualVariantAmountsOptional(recipe.ingredients || [], variant).map((row: any) => ({ ...row, baseAmount: row.amount }))
+          : recipe.ingredients;
+        return totals(rows, individual ? 1 : Number(recipe.defaultServingsA || 1), individual ? 1 : Number(recipe.servings || 1));
+      })(),
+      nutritionB: (() => {
+        const variant = (recipe.defaultVariantB || "B") as PortionVariant;
+        const individual = recipe.portioningMode === "individual" && getAvailableVariants(recipe.ingredients || []).includes(variant);
+        const rows = individual
+          ? getIndividualVariantAmountsOptional(recipe.ingredients || [], variant).map((row: any) => ({ ...row, baseAmount: row.amount }))
+          : recipe.ingredients;
+        return totals(rows, individual ? 1 : Number(recipe.defaultServingsB || 1.5), individual ? 1 : Number(recipe.servings || 1));
+      })(),
+      ingredientIds: (recipe.ingredients || []).map((row: any) => Number(row.ingredientId)).filter(Number.isFinite),
+      history: historyByRecipe.get(Number(recipe.id)) || [],
+      feedback: feedbackByRecipe.get(Number(recipe.id)) || null,
+    }));
+    const plannedRecipeIds = todayEntries.map((entry: any) => Number(entry.recipeId)).filter(Number.isFinite);
+    const { scoreRecipeRecommendations } = await import("./recommendations/recipe-recommendation-engine");
+    const recommendations = scoreRecipeRecommendations({
+      candidates: mapped,
+      balances: {
+        A: { target: { calories: settings.A.targetCalories, protein: settings.A.targetProtein, carbs: settings.A.targetCarbs, fat: settings.A.targetFat }, consumed: consumed.A },
+        B: { target: { calories: settings.B.targetCalories, protein: settings.B.targetProtein, carbs: settings.B.targetCarbs, fat: settings.B.targetFat }, consumed: consumed.B },
+      },
+      date,
+      plannedRecipeIds,
+      ingredientAffinity,
+      limit: input.limit || 10,
+    });
+    const byId = new Map(mapped.map((recipe) => [recipe.id, recipe]));
+    res.json({
+      date,
+      settings: { historyDays: 60, macroMode: "remaining", dislikeMode: "penalty" },
+      recommendations: recommendations.map((item) => ({ ...item, recipe: byId.get(item.recipeId) })),
+    });
+  });
+
+  app.post("/api/recommendations/feedback", async (req, res) => {
+    try {
+      const input = z.object({
+        recipeId: z.number().int().positive(),
+        action: z.enum(["LIKE", "DISLIKE", "TOO_OFTEN", "HIDE", "CLEAR"]),
+        rating: z.number().int().min(1).max(5).nullable().optional(),
+      }).parse(req.body);
+      const current = await storage.getAppState("recipe-recommendation-feedback");
+      const rows = Array.isArray(current) ? current : [];
+      const next = rows.filter((item: any) => Number(item.recipeId) !== input.recipeId);
+      if (input.action !== "CLEAR") {
+        next.push({ recipeId: input.recipeId, action: input.action, rating: input.rating ?? null, createdAt: new Date().toISOString() });
+      }
+      await storage.setAppState("recipe-recommendation-feedback", next);
+      res.json({ success: true });
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ message: error.message });
+      throw error;
+    }
+  });
+
   // User Settings
   app.get("/api/user-settings", async (req, res) => {
     const settings = await storage.getUserSettings();
