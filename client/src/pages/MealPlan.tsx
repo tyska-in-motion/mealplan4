@@ -1095,7 +1095,8 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
       return rankedIds.map((id: number) => byId.get(id)).filter(Boolean);
     }
     if (recipeTab === "rare") {
-      return [...filteredRecipes].sort((a: any, b: any) => {
+      const eligibleIds = new Set((mealRecommendations?.macroEligibleRecipeIds || []).map((id: number) => Number(id)));
+      return filteredRecipes.filter((recipe: any) => eligibleIds.has(Number(recipe.id))).sort((a: any, b: any) => {
         const countDifference = (Number(a?.stats?.eatCount) || 0) - (Number(b?.stats?.eatCount) || 0);
         if (countDifference !== 0) return countDifference;
         return String(a?.name || "").localeCompare(String(b?.name || ""), "pl");

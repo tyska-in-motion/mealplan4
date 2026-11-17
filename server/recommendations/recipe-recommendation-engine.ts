@@ -24,6 +24,23 @@ const dayAge = (date: string, today: string) => {
   return Number.isFinite(a) && Number.isFinite(b) ? Math.max(0, Math.floor((b - a) / 86400000)) : 60;
 };
 
+export function isWithinMacroTolerance(candidate: MacroTotals, balance: PersonDayBalance): boolean {
+  const nutrients: Array<keyof MacroTotals> = ["calories", "protein", "carbs", "fat"];
+  return nutrients.every((key) => {
+    const remaining = Math.max(0, valid(balance.target[key]) - valid(balance.consumed[key]));
+    const amount = Math.max(0, valid(candidate[key]));
+    return amount <= remaining * 1.05 + 1e-6;
+  });
+}
+
+export function isRecommendationMacroEligible(
+  candidate: Pick<RecommendationCandidate, "nutritionA" | "nutritionB">,
+  balances: { A: PersonDayBalance; B: PersonDayBalance },
+): boolean {
+  return isWithinMacroTolerance(candidate.nutritionA, balances.A)
+    && isWithinMacroTolerance(candidate.nutritionB, balances.B);
+}
+
 function macroFit(candidate: MacroTotals, balance: PersonDayBalance): number {
   const weights: Array<[keyof MacroTotals, number]> = [
     ["calories", 0.4], ["protein", 0.3], ["carbs", 0.15], ["fat", 0.15],
@@ -49,7 +66,8 @@ export function scoreRecipeRecommendations(input: {
   mealType?: string;
 }): RecommendationScore[] {
   const planned = new Set(input.plannedRecipeIds || []);
-  const results = input.candidates.map((candidate) => {
+  const eligibleCandidates = input.candidates.filter((candidate) => isRecommendationMacroEligible(candidate, input.balances));
+  const results = eligibleCandidates.map((candidate) => {
     const macro = (macroFit(candidate.nutritionA, input.balances.A) + macroFit(candidate.nutritionB, input.balances.B)) / 2;
     const events = candidate.history.filter((event) => dayAge(event.date, input.date) <= 60 && (!input.mealType || event.mealType === input.mealType));
     const historyStrength = events.reduce((sum, event) => {
