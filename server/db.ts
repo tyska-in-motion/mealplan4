@@ -371,12 +371,13 @@ export async function ensureDbCompat() {
   )`);
   // Detect the legacy date-only table before adding the person column. Only
   // that first transition should copy old shared exclusions to both people.
-  const hadPersonSpecificExclusions = (await pool.query(
+  const personColumnCheck = await pool.query(
     `SELECT 1 FROM information_schema.columns
      WHERE table_schema = current_schema()
        AND table_name = 'stats_day_exclusions'
        AND column_name = 'person'`
-  ))?.rowCount > 0;
+  );
+  const hadPersonSpecificExclusions = Boolean(personColumnCheck && personColumnCheck.rowCount && personColumnCheck.rowCount > 0);
 
   await pool.query(`CREATE TABLE IF NOT EXISTS body_measurements (
     id serial PRIMARY KEY,
