@@ -1825,7 +1825,7 @@ export async function registerRoutes(
   app.get("/api/recommendations", async (req, res) => {
     const input = z.object({
       date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-      limit: z.coerce.number().int().min(1).max(30).optional(),
+      limit: z.coerce.number().int().min(1).max(40).optional(),
       mealType: z.enum(["breakfast", "snack", "lunch", "dinner"]).optional(),
       targetPerson: z.enum(["A", "B", "both"]).optional(),
     }).parse(req.query);
@@ -1903,6 +1903,28 @@ export async function registerRoutes(
     const feedbackRows = Array.isArray(feedbackState) ? feedbackState : [];
     const feedbackByRecipe = new Map<number, any>();
     for (const item of feedbackRows) feedbackByRecipe.set(Number(item.recipeId), item);
+    const produceGramsFor = (rows: any[], servings: number, recipeServings: number) =>
+      (rows || []).reduce((sum: number, row: any) => {
+        const ingredient = row?.ingredient;
+        if (!ingredient || !["vegetable", "fruit"].includes(String(ingredient.produceType || ""))) return sum;
+        const scaled = calculateScaledAmount(row, servings, recipeServings);
+        const edibleGrams = calculateNutritionAmount(scaled, ingredient);
+        return sum + edibleGrams * (Number(ingredient.producePercentage ?? 100) / 100);
+      }, 0);
+    const recipeProduceGrams = (recipe: any, person: "A" | "B") => {
+      const variant = (person === "A" ? recipe.defaultVariantA : recipe.defaultVariantB || "B") as PortionVariant;
+      const individual = recipe.portioningMode === "individual" && getAvailableVariants(recipe.ingredients || []).includes(variant);
+      const servings = Number(person === "A" ? recipe.defaultServingsA : recipe.defaultServingsB) || (person === "A" ? 1 : 1.5);
+      const rows = individual
+        ? getIndividualVariantAmountsOptional(recipe.ingredients || [], variant).map((row: any) => ({ ...row, baseAmount: row.amount }))
+        : recipe.ingredients || [];
+      let total = produceGramsFor(rows, individual ? 1 : servings, individual ? 1 : Number(recipe.servings || 1));
+      for (const addon of recipe.frequentAddons || []) {
+        const amount = Number(person === "A" ? addon.defaultAmountA : addon.defaultAmountB) || 0;
+        if (amount > 0) total += produceGramsFor([{ ...addon, amount, baseAmount: amount }], 1, 1);
+      }
+      return total;
+    };
     const mapped = candidates.map((recipe: any) => ({
       id: Number(recipe.id),
       name: recipe.name,
@@ -1920,6 +1942,8 @@ export async function registerRoutes(
           : recipe.ingredients;
         return totals(rows, individual ? 1 : Number(recipe.defaultServingsA || 1), individual ? 1 : Number(recipe.servings || 1));
       })(),
+      produceGramsA: recipeProduceGrams(recipe, "A"),
+      produceGramsB: recipeProduceGrams(recipe, "B"),
       nutritionB: (() => {
         const variant = (recipe.defaultVariantB || "B") as PortionVariant;
         const individual = recipe.portioningMode === "individual" && getAvailableVariants(recipe.ingredients || []).includes(variant);
@@ -1942,13 +1966,27 @@ export async function registerRoutes(
     const macroEligibleRecipeIds = mapped
       .filter((recipe) => isRecommendationMacroEligible(recipe, balances, targetPerson))
       .map((recipe) => recipe.id);
+    const thirtyDayCutoff = new Date(Date.parse(date + "T00:00:00Z") - 29 * 86400000).toISOString().slice(0, 10);
+    const eatenDaysByRecipe = new Map<number, Set<string>>();
+    for (const entry of historyEntries) {
+      if (!entry.recipeId || !entry.isEaten) continue;
+      const eatenDate = String(entry.date).slice(0, 10);
+      if (eatenDate < thirtyDayCutoff || eatenDate > date) continue;
+      const id = Number(entry.recipeId);
+      const days = eatenDaysByRecipe.get(id) || new Set<string>();
+      days.add(eatenDate);
+      eatenDaysByRecipe.set(id, days);
+    }
+    const rarelyEatenRecipeIds = mapped
+      .filter((recipe) => macroEligibleRecipeIds.includes(recipe.id) && (eatenDaysByRecipe.get(recipe.id)?.size || 0) <= 4)
+      .map((recipe) => recipe.id);
     const recommendations = scoreRecipeRecommendations({
       candidates: mapped,
       balances,
       date,
       plannedRecipeIds,
       ingredientAffinity,
-      limit: input.limit || 10,
+      limit: input.limit || 40,
       mealType: input.mealType,
       targetPerson,
     });
@@ -1957,6 +1995,7 @@ export async function registerRoutes(
       date,
       settings: { historyDays: 60, macroMode: "remaining", dislikeMode: "penalty", mealType: input.mealType || null, targetPerson },
       macroEligibleRecipeIds,
+      rarelyEatenRecipeIds,
       recommendations: recommendations.map((item) => ({ ...item, recipe: byId.get(item.recipeId) })),
     });
   });
