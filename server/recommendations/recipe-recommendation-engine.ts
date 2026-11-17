@@ -1,6 +1,6 @@
 export type MacroTotals = { calories: number; protein: number; carbs: number; fat: number };
 export type PersonDayBalance = { target: MacroTotals; consumed: MacroTotals };
-export type RecommendationHistoryEvent = { date: string; eaten: boolean; mealType?: string };
+export type RecommendationHistoryEvent = { date: string; eaten: boolean; mealType?: string; person?: "A" | "B"; rating?: number | null };
 export type RecommendationFeedback = { action: "LIKE" | "DISLIKE" | "TOO_OFTEN" | "HIDE"; rating?: number | null; createdAt: string };
 export type RecommendationCandidate = {
   id: number;
@@ -95,6 +95,12 @@ export function scoreRecipeRecommendations(input: {
       return sum + (event.eaten ? 1 : 0.2) * Math.exp(-age / 30);
     }, 0);
     const history = clamp(25 + Math.log1p(historyStrength) * 38 + (candidate.isFavorite ? 15 : 0));
+    const ratedEvents = events.filter((event) => event.eaten && Number.isInteger(event.rating) && Number(event.rating) >= 1 && Number(event.rating) <= 5 && (!event.person || targetPerson === "both" || event.person === targetPerson));
+    const ratingScore = ratedEvents.length
+      ? ratedEvents.reduce((sum, event) => sum + ((Number(event.rating) - 3) * 9) * Math.exp(-dayAge(event.date, input.date) / 90), 0)
+        / Math.max(1, ratedEvents.reduce((sum, event) => sum + Math.exp(-dayAge(event.date, input.date) / 90), 0))
+        * Math.min(1, ratedEvents.length / 3)
+      : 0;
     const ingredientIds = candidate.ingredientIds || [];
     const affinities = ingredientIds.map((id) => clamp(valid(input.ingredientAffinity?.[id]), -100, 100));
     const preferences = clamp(50 + (affinities.length ? affinities.reduce((a, b) => a + b, 0) / affinities.length : 0) * 0.5);
@@ -121,6 +127,7 @@ export function scoreRecipeRecommendations(input: {
     if (candidate.isFavorite) reasons.push("Przepis oznaczony jako ulubiony");
     if (recentEaten) reasons.push("Ostatnio jedzony – ograniczono jego pozycję");
     if (!recentEaten && !recentPlanned) reasons.push("Daje większą różnorodność");
+    score += ratingScore;
     if (candidate.feedback?.action === "LIKE") score += 18;
     if (candidate.feedback?.rating) score += (valid(candidate.feedback.rating) - 3) * 3;
     if (candidate.feedback?.action === "DISLIKE") {
