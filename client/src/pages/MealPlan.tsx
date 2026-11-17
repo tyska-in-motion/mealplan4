@@ -1082,6 +1082,8 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
     });
   }, [recipes, searchQuery, selectedTag, recipeSort]);
 
+  const recommendedRecipeIds = useMemo(() => new Set((mealRecommendations?.recommendations || []).slice(0, 4).map((item: any) => Number(item.recipeId)), [mealRecommendations]);
+
   const displayedRecipes = useMemo(() => {
     if (!mealRecommendations?.recommendations?.length || searchQuery.trim() || selectedTag || recipeSort !== "popular") return filteredRecipes;
     const recommendedIds = mealRecommendations.recommendations.slice(0, 4).map((item: any) => Number(item.recipeId));
@@ -2948,7 +2950,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
                     >
                       <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-cover bg-center bg-muted flex-shrink-0" style={{ backgroundImage: `url(${recipe.imageUrl})` }} />
                       <div className="min-w-0 flex-1">
-                        <p className="font-semibold truncate">{recipe.name}</p>
+                        <div className="flex min-w-0 items-center gap-2"><p className="font-semibold truncate">{recipe.name}</p>{recommendedRecipeIds.has(Number(recipe.id)) && <span className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary">Dla Ciebie</span>}</div>
                         <div className="flex min-w-0 flex-wrap items-center gap-1 sm:gap-2">
                           <p className="text-[11px] text-muted-foreground">{recipe.prepTime} min</p>
                           {!isIndividualVariantRecipe(recipe) && (
