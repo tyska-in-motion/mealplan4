@@ -172,8 +172,12 @@ const storage_multer = multer.diskStorage({
 const upload = multer({ storage: storage_multer });
 
 function getEntryIngredientsForSummary(entry: any) {
-  return entry.ingredients && entry.ingredients.length > 0
-    ? entry.ingredients
+  const entryIngredients = Array.isArray(entry?.ingredients)
+    ? entry.ingredients.filter((ingredientRow: any) => ingredientRow?.ingredient)
+    : [];
+
+  return entryIngredients.length > 0
+    ? entryIngredients
     : (entry.recipe?.ingredients || []);
 }
 
