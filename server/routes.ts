@@ -1892,7 +1892,7 @@ export async function registerRoutes(
       defaultServingsA: Number(recipe.defaultServingsA || 1),
       defaultServingsB: Number(recipe.defaultServingsB || 1.5),
       nutritionA: (() => {
-        const variant = recipe.defaultVariantA || "B";
+        const variant = (recipe.defaultVariantA || "B") as PortionVariant;
         const individual = recipe.portioningMode === "individual" && getAvailableVariants(recipe.ingredients || []).includes(variant);
         const rows = individual
           ? getIndividualVariantAmountsOptional(recipe.ingredients || [], variant).map((row: any) => ({ ...row, baseAmount: row.amount }))
@@ -1900,7 +1900,7 @@ export async function registerRoutes(
         return totals(rows, individual ? 1 : Number(recipe.defaultServingsA || 1), individual ? 1 : Number(recipe.servings || 1));
       })(),
       nutritionB: (() => {
-        const variant = recipe.defaultVariantB || "B";
+        const variant = (recipe.defaultVariantB || "B") as PortionVariant;
         const individual = recipe.portioningMode === "individual" && getAvailableVariants(recipe.ingredients || []).includes(variant);
         const rows = individual
           ? getIndividualVariantAmountsOptional(recipe.ingredients || [], variant).map((row: any) => ({ ...row, baseAmount: row.amount }))
