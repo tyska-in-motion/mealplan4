@@ -564,6 +564,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [recipeSort, setRecipeSort] = useState("popular");
   const [recipeTab, setRecipeTab] = useState<"all" | "recommended" | "rare">("all");
+  const [recommendationSort, setRecommendationSort] = useState<"default" | "calories-desc">("default");
 
   const { data: recipes, isFetching: isFetchingRecipes } = useRecipeSearchIndex(isAddOpen || isSharedView);
   const { data: mealRecommendations } = useRecipeRecommendations(
@@ -1093,22 +1094,60 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
     [mealRecommendations],
   );
 
+  const getRecipeCaloriesIncludingDefaultAddons = (recipe: any, person: "A" | "B") => {
+    let calories = getRecipeNutritionAtServings(recipe, 1).calories;
+
+    if (isIndividualVariantRecipe(recipe)) {
+      const availableVariants = getAvailableVariants(recipe?.ingredients || []);
+      const configuredVariant = person === "A" ? recipe?.defaultVariantA : recipe?.defaultVariantB;
+      const variant = availableVariants.includes(configuredVariant) ? configuredVariant : (availableVariants[0] || "B");
+      calories = (recipe?.ingredients || []).reduce((sum: number, ri: any) => {
+        if (!ri?.ingredient) return sum;
+        const amount = Math.max(0, Number(ri[`variantAmount${variant}`]) || 0);
+        const nutritionAmount = calculateNutritionAmount(amount, ri.ingredient);
+        return sum + (Number(ri.ingredient.calories) || 0) * nutritionAmount / 100;
+      }, 0);
+    }
+
+    (recipe?.frequentAddons || []).forEach((addon: any) => {
+      if (!addon?.ingredient) return;
+      const fallbackAmount = Number(addon?.baseAmount ?? addon?.amount) || 0;
+      const amount = person === "A"
+        ? Number(addon?.defaultAmountA) || 0
+        : Number(addon?.defaultAmountB ?? fallbackAmount) || 0;
+      const nutritionAmount = calculateNutritionAmount(Math.max(0, amount), addon.ingredient);
+      calories += (Number(addon.ingredient.calories) || 0) * nutritionAmount / 100;
+    });
+
+    return Math.round(calories);
+  };
+
+  const getRecipeCaloriesForCurrentTarget = (recipe: any) => addRecipeForBothPeople
+    ? (getRecipeCaloriesIncludingDefaultAddons(recipe, "A") + getRecipeCaloriesIncludingDefaultAddons(recipe, "B")) / 2
+    : getRecipeCaloriesIncludingDefaultAddons(recipe, selectedPerson);
+
   const displayedRecipes = useMemo(() => {
+    let result: any[];
     if (recipeTab === "recommended") {
       const rankedIds = (mealRecommendations?.recommendations || []).map((item: any) => Number(item.recipeId));
       const byId = new Map((filteredRecipes || []).map((recipe: any) => [Number(recipe.id), recipe]));
-      return rankedIds.map((id: number) => byId.get(id)).filter(Boolean);
-    }
-    if (recipeTab === "rare") {
+      result = rankedIds.map((id: number) => byId.get(id)).filter(Boolean);
+    } else if (recipeTab === "rare") {
       const eligibleIds = new Set((mealRecommendations?.macroEligibleRecipeIds || []).map((id: number) => Number(id)));
-      return filteredRecipes.filter((recipe: any) => eligibleIds.has(Number(recipe.id))).sort((a: any, b: any) => {
+      result = filteredRecipes.filter((recipe: any) => eligibleIds.has(Number(recipe.id))).sort((a: any, b: any) => {
         const countDifference = (Number(a?.stats?.eatCount) || 0) - (Number(b?.stats?.eatCount) || 0);
         if (countDifference !== 0) return countDifference;
         return String(a?.name || "").localeCompare(String(b?.name || ""), "pl");
       });
+    } else {
+      return filteredRecipes;
     }
-    return filteredRecipes;
-  }, [filteredRecipes, mealRecommendations, recipeTab]);
+
+    if (recommendationSort === "calories-desc") {
+      return [...result].sort((a, b) => getRecipeCaloriesForCurrentTarget(b) - getRecipeCaloriesForCurrentTarget(a));
+    }
+    return result;
+  }, [filteredRecipes, mealRecommendations, recipeTab, recommendationSort, addRecipeForBothPeople, selectedPerson]);
 
   const handleOpenAdd = (mealType: string, dateStr: string, person: "A" | "B") => {
     setSelectedMealType(mealType);
@@ -1117,11 +1156,12 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
     setSelectedTag(null);
     setRecipeSort("popular");
     setRecipeTab("all");
+    setRecommendationSort("default");
     setSelectedPerson(person);
     setSelectedRecipeToAdd(null);
     setSelectedRecommendedBatchId(null);
     setSelectedFrequentAddons({ A: {}, B: {} });
-    setAddRecipeForBothPeople(false);
+    setAddRecipeForBothPeople(true);
     setSelectedRecipeServings(1);
     setSelectedPersonServings({ A: 1, B: 1 });
     setSelectedSuggestedRecipes({});
@@ -2934,6 +2974,15 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
                 </SelectContent>
               </Select>
 
+              {recipeTab !== "all" && <Select value={recommendationSort} onValueChange={(value) => setRecommendationSort(value as "default" | "calories-desc")}>
+                <SelectTrigger className="h-9">
+                  <SelectValue placeholder="Sortuj rekomendacje" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">Domyślna kolejność</SelectItem>
+                  <SelectItem value="calories-desc">Kalorie / porcję (malejąco)</SelectItem>
+                </SelectContent>
+              </Select>}
               {recipeTab === "all" && <Select value={recipeSort} onValueChange={setRecipeSort}>
                 <SelectTrigger className="h-9">
                   <SelectValue placeholder="Sortuj przepisy" />
@@ -2994,7 +3043,9 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
                             </p>
                           )}
                           <p className="text-[11px] text-muted-foreground">
-                            ~{Math.round(getRecipeNutritionAtServings(recipe, 1).calories)} kcal/porcję
+                            ~{addRecipeForBothPeople
+                              ? `A: ${getRecipeCaloriesIncludingDefaultAddons(recipe, "A")} / B: ${getRecipeCaloriesIncludingDefaultAddons(recipe, "B")} kcal/porcję`
+                              : ` ${getRecipeCaloriesIncludingDefaultAddons(recipe, selectedPerson)} kcal/porcję`}
                           </p>
                           <p className="text-[11px] text-muted-foreground">
                             Zjedzone: {Number(recipe?.stats?.eatCount) || 0}x
