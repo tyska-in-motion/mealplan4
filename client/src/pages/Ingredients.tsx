@@ -361,7 +361,7 @@ export default function Ingredients() {
                     value={form.watch("produceType") || "auto"}
                     onValueChange={(value) => {
                       const nextType = value === "auto" ? null : value as "none" | "vegetable" | "fruit";
-                      form.setValue("produceType", nextType, { shouldDirty: true });
+                      form.setValue("produceType", nextType as any, { shouldDirty: true });
                       if (nextType === "none") {
                         form.setValue("producePercentage", 0, { shouldDirty: true });
                       } else if (Number(form.getValues("producePercentage")) === 0) {
