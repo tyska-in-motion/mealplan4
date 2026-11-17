@@ -3,15 +3,12 @@ import { useRecipeRecommendations, useRecipeRecommendationFeedback } from "@/hoo
 import { useAddMealEntry } from "@/hooks/use-meal-plan";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { ThumbsDown, ThumbsUp, Sparkles } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
 
 export function RecipeRecommendations({ date }: { date: string }) {
   const { data, isLoading, isError } = useRecipeRecommendations(date);
   const feedback = useRecipeRecommendationFeedback(date);
   const addMeal = useAddMealEntry();
-  const { toast } = useToast();
   const [personByRecipe, setPersonByRecipe] = useState<Record<number, "A" | "B">>({});
   const [mealTypeByRecipe, setMealTypeByRecipe] = useState<Record<number, string>>({});
   const recommendations = data?.recommendations || [];
