@@ -757,7 +757,11 @@ export async function ensureDbCompat() {
 
   await pool.query(`ALTER TABLE meal_entries ADD COLUMN IF NOT EXISTS cooked_batch_id integer`);
   await pool.query(`ALTER TABLE meal_entries ADD COLUMN IF NOT EXISTS recipe_snapshot jsonb`);
+  // Keep runtime compatibility aligned with migration 0011 even when SQL
+  // migrations have not been applied by the deployment platform.
+  await pool.query(`ALTER TABLE meal_entries ADD COLUMN IF NOT EXISTS consumed_weight_grams real`);
   await pool.query(`ALTER TABLE shared_meal_batches ADD COLUMN IF NOT EXISTS recipe_snapshot jsonb`);
+  await pool.query(`ALTER TABLE shared_meal_batches ADD COLUMN IF NOT EXISTS finished_weight_grams real`);
 
   await pool.query(`CREATE TABLE IF NOT EXISTS shared_meal_batch_logs (
     id serial PRIMARY KEY,
