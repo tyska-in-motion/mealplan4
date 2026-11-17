@@ -4252,7 +4252,7 @@ function DaySection({ day, sectionId, recipes, userSettings, allAvailableIngredi
                                       />
 {Number(entry.cookedBatch?.finishedWeightGrams) > 0 && (
                                         <label className="flex items-center gap-1 text-[9px] text-muted-foreground">
-                                          <span>g</span>
+                                          <span>g*</span>
                                           <Input
                                             key={`consumed-weight-${entry.id}-${entry.consumedWeightGrams ?? "empty"}`}
                                             type="number"
@@ -4261,7 +4261,7 @@ function DaySection({ day, sectionId, recipes, userSettings, allAvailableIngredi
                                             inputMode="numeric"
                                             className="h-5 w-12 px-1 py-0 text-center text-[10px]"
                                             defaultValue={entry.consumedWeightGrams ?? ""}
-                                            placeholder="—"
+                                            placeholder="wymagana"
                                             onBlur={(e) => {
                                               const raw = e.currentTarget.value.trim();
                                               const nextWeight = raw === "" ? null : Number(raw);
@@ -4270,7 +4270,7 @@ function DaySection({ day, sectionId, recipes, userSettings, allAvailableIngredi
                                                 onUpdateEntry(entry, { consumedWeightGrams: nextWeight });
                                               }
                                             }}
-                                            aria-label="Zjedzona masa w gramach"
+                                            aria-label="Wymagana masa zjedzonej porcji w gramach"
                                           />
                                         </label>
                                       )}
