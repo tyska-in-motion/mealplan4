@@ -463,6 +463,24 @@ export const api = {
       },
     },
   },
+  recommendations: {
+    list: {
+      method: "GET" as const,
+      path: "/api/recommendations",
+      input: z.object({ date: z.string(), limit: z.coerce.number().int().min(1).max(30).optional() }),
+      responses: { 200: z.custom<any>() },
+    },
+    feedback: {
+      method: "POST" as const,
+      path: "/api/recommendations/feedback",
+      input: z.object({
+        recipeId: z.number().int().positive(),
+        action: z.enum(["LIKE", "DISLIKE", "TOO_OFTEN", "HIDE", "CLEAR"]),
+        rating: z.number().int().min(1).max(5).nullable().optional(),
+      }),
+      responses: { 200: z.object({ success: z.boolean() }), 400: errorSchemas.validation },
+    },
+  },
   userSettings: {
     get: {
       path: "/api/user-settings",
