@@ -1931,13 +1931,17 @@ export async function registerRoutes(
       feedback: feedbackByRecipe.get(Number(recipe.id)) || null,
     }));
     const plannedRecipeIds = todayEntries.map((entry: any) => Number(entry.recipeId)).filter(Number.isFinite);
-    const { scoreRecipeRecommendations } = await import("./recommendations/recipe-recommendation-engine");
+    const { scoreRecipeRecommendations, isRecommendationMacroEligible } = await import("./recommendations/recipe-recommendation-engine");
+    const balances = {
+      A: { target: { calories: settings.A.targetCalories, protein: settings.A.targetProtein, carbs: settings.A.targetCarbs, fat: settings.A.targetFat }, consumed: consumed.A },
+      B: { target: { calories: settings.B.targetCalories, protein: settings.B.targetProtein, carbs: settings.B.targetCarbs, fat: settings.B.targetFat }, consumed: consumed.B },
+    };
+    const macroEligibleRecipeIds = mapped
+      .filter((recipe) => isRecommendationMacroEligible(recipe, balances))
+      .map((recipe) => recipe.id);
     const recommendations = scoreRecipeRecommendations({
       candidates: mapped,
-      balances: {
-        A: { target: { calories: settings.A.targetCalories, protein: settings.A.targetProtein, carbs: settings.A.targetCarbs, fat: settings.A.targetFat }, consumed: consumed.A },
-        B: { target: { calories: settings.B.targetCalories, protein: settings.B.targetProtein, carbs: settings.B.targetCarbs, fat: settings.B.targetFat }, consumed: consumed.B },
-      },
+      balances,
       date,
       plannedRecipeIds,
       ingredientAffinity,
@@ -1948,6 +1952,7 @@ export async function registerRoutes(
     res.json({
       date,
       settings: { historyDays: 60, macroMode: "remaining", dislikeMode: "penalty", mealType: input.mealType || null },
+      macroEligibleRecipeIds,
       recommendations: recommendations.map((item) => ({ ...item, recipe: byId.get(item.recipeId) })),
     });
   });
