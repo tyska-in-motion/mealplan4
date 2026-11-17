@@ -433,6 +433,7 @@ export const api = {
       path: "/api/shared-meals/:id",
       input: z.object({
         totalServings: z.number().min(0.25).optional(),
+        finishedWeightGrams: z.number().positive().nullable().optional(),
         note: z.string().nullable().optional(),
         ingredients: z.array(z.object({
           ingredientId: z.number(),
