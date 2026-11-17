@@ -20,7 +20,7 @@ const RecipeView = lazy(() => import("@/components/RecipeView").then(({ RecipeVi
 import { calculateNutritionAmount, calculatePurchaseAmount, calculateScaledAmount } from "@shared/scaling";
 import { getProduceContribution } from "@shared/produce-tracking";
 import { useToast } from "@/hooks/use-toast";
-import { RecipeRecommendations } from "@/components/recommendations/RecipeRecommendations";
+import { useRecipeRecommendations } from "@/hooks/use-recommendations";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -565,6 +565,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
   const [recipeSort, setRecipeSort] = useState("popular");
 
   const { data: recipes, isFetching: isFetchingRecipes } = useRecipeSearchIndex(isAddOpen || isSharedView);
+  const { data: mealRecommendations } = useRecipeRecommendations(selectedDateStr || "", selectedMealType, isAddOpen && !isSharedView && !!selectedDateStr && !!selectedMealType);
   const filteredSharedRecipes = useMemo(() => {
     const normalizedQuery = normalizeSearchText(sharedRecipeSearch);
     if (!normalizedQuery) return recipes || [];
@@ -1080,6 +1081,19 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
       }
     });
   }, [recipes, searchQuery, selectedTag, recipeSort]);
+
+  const recommendedRecipeIds = useMemo(() => new Set((mealRecommendations?.recommendations || []).slice(0, 4).map((item: any) => Number(item.recipeId)), [mealRecommendations]);
+
+  const displayedRecipes = useMemo(() => {
+    if (!mealRecommendations?.recommendations?.length || searchQuery.trim() || selectedTag || recipeSort !== "popular") return filteredRecipes;
+    const recommendedIds = mealRecommendations.recommendations.slice(0, 4).map((item: any) => Number(item.recipeId));
+    const rank = new Map(recommendedIds.map((id: number, index: number) => [id, index]));
+    return [...filteredRecipes].sort((a: any, b: any) => {
+      const rankA = rank.has(Number(a.id)) ? rank.get(Number(a.id))! : 100;
+      const rankB = rank.has(Number(b.id)) ? rank.get(Number(b.id))! : 100;
+      return rankA - rankB;
+    });
+  }, [filteredRecipes, mealRecommendations, searchQuery, selectedTag, recipeSort]);
 
   const handleOpenAdd = (mealType: string, dateStr: string, person: "A" | "B") => {
     setSelectedMealType(mealType);
@@ -2053,7 +2067,6 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
 
   return (
     <Layout>
-      {!isSharedView && <RecipeRecommendations date={format(baseDate, "yyyy-MM-dd")} />}
       <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         {!isSharedView && (
           <div className="flex w-full items-center justify-between gap-2 rounded-xl border border-border bg-white p-2 shadow-sm sm:w-auto sm:justify-start sm:gap-4">
@@ -2905,8 +2918,8 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
                 <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
                   Szukam przepisów...
                 </div>
-              ) : filteredRecipes.length > 0 ? (
-                filteredRecipes.map((recipe: any) => (
+              ) : displayedRecipes.length > 0 ? (
+                displayedRecipes.map((recipe: any) => (
                   <div key={recipe.id} className="flex min-w-0 items-center gap-1.5">
                     <button
                       onClick={async () => {
@@ -2937,7 +2950,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
                     >
                       <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-cover bg-center bg-muted flex-shrink-0" style={{ backgroundImage: `url(${recipe.imageUrl})` }} />
                       <div className="min-w-0 flex-1">
-                        <p className="font-semibold truncate">{recipe.name}</p>
+                        <div className="flex min-w-0 items-center gap-2"><p className="font-semibold truncate">{recipe.name}</p>{recommendedRecipeIds.has(Number(recipe.id)) && <span className="shrink-0 rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary">Dla Ciebie</span>}</div>
                         <div className="flex min-w-0 flex-wrap items-center gap-1 sm:gap-2">
                           <p className="text-[11px] text-muted-foreground">{recipe.prepTime} min</p>
                           {!isIndividualVariantRecipe(recipe) && (
