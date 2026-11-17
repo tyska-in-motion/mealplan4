@@ -1840,7 +1840,7 @@ export default function Dashboard() {
                         key={meal.id}
                         className={cn(
                           "group relative flex min-h-[76px] items-center gap-3 rounded-xl border px-3 py-3 pr-10 transition-colors",
-                          meal.isEaten ? "border-emerald-300 bg-emerald-50/80" : "border-border/60 bg-card hover:border-primary/30 hover:bg-muted/20"
+                          meal.isEaten ? "border-emerald-300 bg-emerald-50/80 dark:border-emerald-800 dark:bg-emerald-950/50" : "border-border/60 bg-card hover:border-primary/30 hover:bg-muted/20"
                         )}
                       >
                         <div className="flex min-w-0 flex-1 items-center gap-1.5">
