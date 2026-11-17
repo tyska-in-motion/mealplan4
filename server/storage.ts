@@ -1189,11 +1189,27 @@ export class DatabaseStorage implements IStorage {
       const shouldCreateSharedBatch = createSharedBatch ?? !manualOnly;
 
       if (recipe && shouldCreateSharedBatch) {
-        const activeBatches = await this.getSharedMealBatches();
-        const existingBatch = activeBatches.find((batch: any) => (
-          Number(batch.recipeId) === Number(entryData.recipeId)
-          && Number(batch.remainingServings || 0) >= requestedServings
-        ));
+        // Only fetch matching active batches and their serving allocations.
+        // Loading every batch with full recipe relations and audit logs made each
+        // MealPlan add increasingly expensive as shared-meal history grew.
+        const activeBatches = await db.query.sharedMealBatches.findMany({
+          where: and(
+            eq(sharedMealBatches.recipeId, Number(entryData.recipeId)),
+            eq(sharedMealBatches.isArchived, false),
+          ),
+          columns: { id: true, totalServings: true },
+          with: {
+            mealEntries: { columns: { servings: true } },
+          },
+          orderBy: (batch, { desc }) => [desc(batch.createdAt)],
+        });
+        const existingBatch = activeBatches.find((batch: any) => {
+          const allocatedServings = (batch.mealEntries || []).reduce(
+            (sum: number, mealEntry: any) => sum + (Number(mealEntry.servings) || 0),
+            0,
+          );
+          return Number(batch.totalServings || 0) - allocatedServings >= requestedServings;
+        });
 
         if (existingBatch) {
           cookedBatchId = Number(existingBatch.id);
