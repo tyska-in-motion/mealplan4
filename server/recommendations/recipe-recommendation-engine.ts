@@ -1,6 +1,6 @@
 export type MacroTotals = { calories: number; protein: number; carbs: number; fat: number };
 export type PersonDayBalance = { target: MacroTotals; consumed: MacroTotals };
-export type RecommendationHistoryEvent = { date: string; eaten: boolean };
+export type RecommendationHistoryEvent = { date: string; eaten: boolean; mealType?: string };
 export type RecommendationFeedback = { action: "LIKE" | "DISLIKE" | "TOO_OFTEN" | "HIDE"; rating?: number | null; createdAt: string };
 export type RecommendationCandidate = {
   id: number;
@@ -46,16 +46,17 @@ export function scoreRecipeRecommendations(input: {
   plannedRecipeIds?: number[];
   ingredientAffinity?: Record<number, number>;
   limit?: number;
+  mealType?: string;
 }): RecommendationScore[] {
   const planned = new Set(input.plannedRecipeIds || []);
   const results = input.candidates.map((candidate) => {
     const macro = (macroFit(candidate.nutritionA, input.balances.A) + macroFit(candidate.nutritionB, input.balances.B)) / 2;
-    const events = candidate.history.filter((event) => dayAge(event.date, input.date) <= 60);
+    const events = candidate.history.filter((event) => dayAge(event.date, input.date) <= 60 && (!input.mealType || event.mealType === input.mealType));
     const historyStrength = events.reduce((sum, event) => {
       const age = dayAge(event.date, input.date);
       return sum + (event.eaten ? 1 : 0.2) * Math.exp(-age / 30);
     }, 0);
-    const history = clamp(35 + Math.log1p(historyStrength) * 28 + (candidate.isFavorite ? 15 : 0));
+    const history = clamp(25 + Math.log1p(historyStrength) * 38 + (candidate.isFavorite ? 15 : 0));
     const ingredientIds = candidate.ingredientIds || [];
     const affinities = ingredientIds.map((id) => clamp(valid(input.ingredientAffinity?.[id]), -100, 100));
     const preferences = clamp(50 + (affinities.length ? affinities.reduce((a, b) => a + b, 0) / affinities.length : 0) * 0.5);
@@ -64,14 +65,16 @@ export function scoreRecipeRecommendations(input: {
     const variety = recentEaten ? 15 : recentPlanned ? 45 : 85;
     const plan = planned.has(candidate.id) ? 0 : 85;
     const breakdown = { macro, history, preferences, variety, plan };
-    let score = macro * 0.35 + history * 0.25 + preferences * 0.15 + variety * 0.15 + plan * 0.10;
+    let score = input.mealType
+      ? history * 0.55 + preferences * 0.20 + variety * 0.20 + plan * 0.05
+      : macro * 0.35 + history * 0.25 + preferences * 0.15 + variety * 0.15 + plan * 0.10;
     const reasons: string[] = [];
     if (macro >= 70) reasons.push("Dobrze pasuje do pozostałego bilansu makro");
     if (history >= 65) reasons.push("Pasuje do dotychczasowych wyborów");
     if (candidate.isFavorite) reasons.push("Przepis oznaczony jako ulubiony");
     if (recentEaten) reasons.push("Ostatnio jedzony – ograniczono jego pozycję");
     if (!recentEaten && !recentPlanned) reasons.push("Daje większą różnorodność");
-    if (candidate.feedback?.action === "LIKE") score += 8;
+    if (candidate.feedback?.action === "LIKE") score += 18;
     if (candidate.feedback?.rating) score += (valid(candidate.feedback.rating) - 3) * 3;
     if (candidate.feedback?.action === "DISLIKE") {
       score -= 35;
