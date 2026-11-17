@@ -1889,8 +1889,24 @@ export async function registerRoutes(
       isFavorite: !!recipe.isFavorite,
       tags: recipe.tags || [],
       prepTime: recipe.prepTime,
-      nutritionA: totals(recipe.ingredients, Number(recipe.defaultServingsA || 1), Number(recipe.servings || 1)),
-      nutritionB: totals(recipe.ingredients, Number(recipe.defaultServingsB || 1), Number(recipe.servings || 1)),
+      defaultServingsA: Number(recipe.defaultServingsA || 1),
+      defaultServingsB: Number(recipe.defaultServingsB || 1.5),
+      nutritionA: (() => {
+        const variant = recipe.defaultVariantA || "B";
+        const individual = recipe.portioningMode === "individual" && getAvailableVariants(recipe.ingredients || []).includes(variant);
+        const rows = individual
+          ? getIndividualVariantAmountsOptional(recipe.ingredients || [], variant).map((row: any) => ({ ...row, baseAmount: row.amount }))
+          : recipe.ingredients;
+        return totals(rows, individual ? 1 : Number(recipe.defaultServingsA || 1), individual ? 1 : Number(recipe.servings || 1));
+      })(),
+      nutritionB: (() => {
+        const variant = recipe.defaultVariantB || "B";
+        const individual = recipe.portioningMode === "individual" && getAvailableVariants(recipe.ingredients || []).includes(variant);
+        const rows = individual
+          ? getIndividualVariantAmountsOptional(recipe.ingredients || [], variant).map((row: any) => ({ ...row, baseAmount: row.amount }))
+          : recipe.ingredients;
+        return totals(rows, individual ? 1 : Number(recipe.defaultServingsB || 1.5), individual ? 1 : Number(recipe.servings || 1));
+      })(),
       ingredientIds: (recipe.ingredients || []).map((row: any) => Number(row.ingredientId)).filter(Number.isFinite),
       history: historyByRecipe.get(Number(recipe.id)) || [],
       feedback: feedbackByRecipe.get(Number(recipe.id)) || null,
