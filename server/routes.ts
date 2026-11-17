@@ -1854,8 +1854,9 @@ export async function registerRoutes(
       A: { calories: 0, protein: 0, carbs: 0, fat: 0 },
       B: { calories: 0, protein: 0, carbs: 0, fat: 0 },
     };
+    // Recommendations must reserve the macros of every meal already added to this day's plan,
+    // not only meals marked as eaten. Otherwise multiple planned meals can overbook the daily budget.
     for (const entry of todayEntries) {
-      if (!entry.isEaten) continue;
       const person = entry.person === "B" ? "B" : "A";
       const rows = entry.ingredients?.length ? entry.ingredients : entry.recipe?.ingredients || [];
       const occurrenceTracker = new Map<number, number>();
