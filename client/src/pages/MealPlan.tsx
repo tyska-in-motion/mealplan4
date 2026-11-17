@@ -247,7 +247,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
   }, [archivedSharedBatches]);
 
   const updateBatch = useMutation({
-    mutationFn: async ({ id, updates }: { id: number; updates: { totalServings?: number; note?: string | null; ingredients?: any[] } }) => {
+    mutationFn: async ({ id, updates }: { id: number; updates: { totalServings?: number; finishedWeightGrams?: number | null; note?: string | null; ingredients?: any[] } }) => {
       const path = api.sharedMeals.updateBatch.path.replace(":id", String(id));
       const res = await fetch(path, {
         method: api.sharedMeals.updateBatch.method,
@@ -255,6 +255,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
         body: JSON.stringify({
           ...updates,
           ...(updates.totalServings !== undefined ? { totalServings: Math.max(0.25, updates.totalServings) } : {}),
+          ...(updates.finishedWeightGrams !== undefined ? { finishedWeightGrams: updates.finishedWeightGrams } : {}),
           ...(updates.note !== undefined ? { note: updates.note?.trim() || null } : {}),
         }),
       });
@@ -2284,6 +2285,25 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
                     </div>
                   </div>
                   <div className="mt-3 grid gap-2 md:grid-cols-5">
+                    <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+                      Masa gotowej partii (g)
+                      <Input
+                        key={`batch-weight-${batch.id}-${batch.finishedWeightGrams ?? "empty"}`}
+                        type="number"
+                        min={1}
+                        step={1}
+                        defaultValue={batch.finishedWeightGrams ?? ""}
+                        placeholder="Opcjonalnie"
+                        onBlur={(e) => {
+                          const raw = e.currentTarget.value.trim();
+                          const nextWeight = raw === "" ? null : Number(raw);
+                          if (raw !== "" && (!Number.isFinite(nextWeight) || nextWeight <= 0)) return;
+                          if ((Number(batch.finishedWeightGrams) || null) !== nextWeight) {
+                            updateBatch.mutate({ id: Number(batch.id), updates: { finishedWeightGrams: nextWeight } });
+                          }
+                        }}
+                      />
+                    </label>
                     <Input type="date" value={form.date} onChange={(e) => updateAllocationForm(batch.id, { date: e.target.value })} />
                     <select className="h-10 rounded-md border border-input bg-background px-3 text-foreground" value={form.mealType} onChange={(e) => updateAllocationForm(batch.id, { mealType: e.target.value })}>
                       <option value="breakfast">Śniadanie</option><option value="snack">Lunch</option><option value="lunch">Obiad</option><option value="dinner">Kolacja</option>
@@ -4230,6 +4250,30 @@ function DaySection({ day, sectionId, recipes, userSettings, allAvailableIngredi
                                         }}
                                         aria-label="Liczba porcji"
                                       />
+{Number(entry.cookedBatch?.finishedWeightGrams) > 0 && (
+                                        <label className="flex items-center gap-1 text-[9px] text-muted-foreground">
+                                          <span>g</span>
+                                          <Input
+                                            key={`consumed-weight-${entry.id}-${entry.consumedWeightGrams ?? "empty"}`}
+                                            type="number"
+                                            min={1}
+                                            step={1}
+                                            inputMode="numeric"
+                                            className="h-5 w-12 px-1 py-0 text-center text-[10px]"
+                                            defaultValue={entry.consumedWeightGrams ?? ""}
+                                            placeholder="—"
+                                            onBlur={(e) => {
+                                              const raw = e.currentTarget.value.trim();
+                                              const nextWeight = raw === "" ? null : Number(raw);
+                                              if (raw !== "" && (!Number.isFinite(nextWeight) || nextWeight <= 0)) return;
+                                              if ((Number(entry.consumedWeightGrams) || null) !== nextWeight) {
+                                                onUpdateEntry(entry, { consumedWeightGrams: nextWeight });
+                                              }
+                                            }}
+                                            aria-label="Zjedzona masa w gramach"
+                                          />
+                                        </label>
+                                      )}
                                       {entry.recipe && (
                                         <span className="shrink-0 whitespace-nowrap text-[8px] font-medium text-muted-foreground sm:text-[9px]">/ {Number(entry.recipe.servings) || 1}</span>
                                       )}
