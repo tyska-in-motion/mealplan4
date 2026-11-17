@@ -1361,6 +1361,14 @@ export async function registerRoutes(
     const entries = await storage.getMealEntriesRange(startDate, endDate);
     const excludedItems = new Set(await storage.getShoppingListExcludedItems(startDate, endDate));
 
+    const sharedBatches = await storage.getSharedMealBatches();
+    const eatenSharedBatchIds = new Set<number>(
+      sharedBatches
+        .filter((batch: any) => (batch.mealEntries || []).some((entry: any) => entry.isEaten === true))
+        .map((batch: any) => Number(batch.id))
+        .filter((id: number) => Number.isFinite(id) && id > 0),
+    );
+
     const shoppingMap = new Map<number, {
       name: string;
       amount: number;
@@ -1372,7 +1380,10 @@ export async function registerRoutes(
       dailyAmounts: Map<string, number>;
     }>();
 
-    for (const entry of entries.filter((item) => item.isEaten !== true)) {
+    for (const entry of entries.filter((item) => (
+      item.isEaten !== true
+      && !(Number(item.cookedBatchId) > 0 && eatenSharedBatchIds.has(Number(item.cookedBatchId)))
+    ))) {
       const entryIngredients = (entry.ingredients || []).filter((ri: any) => !!ri?.ingredient);
       const recipeIngredientsFromRange = [
         ...(entry.recipe?.ingredients || []),
@@ -1429,8 +1440,9 @@ export async function registerRoutes(
       }
     }
 
-    const sharedBatches = await storage.getSharedMealBatches();
     for (const batch of sharedBatches) {
+      if (eatenSharedBatchIds.has(Number(batch.id))) continue;
+
       const remainingServings = Number(batch?.remainingServings ?? batch?.totalServings ?? 0);
       if (!Number.isFinite(remainingServings) || remainingServings <= 0) {
         continue;
