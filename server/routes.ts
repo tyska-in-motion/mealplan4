@@ -1166,6 +1166,32 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/meal-plan/entry/:id/rating", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const input = z.object({ rating: z.number().int().min(1).max(5) }).parse(req.body);
+      const entry = await storage.getMealEntryById(id);
+      if (!entry) return res.status(404).json({ message: "Nie znaleziono wpisu posiłku" });
+      if (!entry.recipeId) return res.status(400).json({ message: "Oceny można przypisywać tylko przepisom." });
+      if (!entry.isEaten) return res.status(400).json({ message: "Najpierw oznacz posiłek jako zjedzony." });
+
+      const event = {
+        id: `${id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        mealEntryId: id,
+        recipeId: Number(entry.recipeId),
+        person: entry.person === "B" ? "B" : "A",
+        date: String(entry.date).slice(0, 10),
+        rating: input.rating,
+        createdAt: new Date().toISOString(),
+      };
+      await storage.appendAppStateItem("meal-entry-ratings", event);
+      res.json({ success: true });
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ message: error.message });
+      throw error;
+    }
+  });
+
   app.patch("/api/meal-plan/entry/:id", async (req, res) => {
     try {
       const id = Number(req.params.id);
