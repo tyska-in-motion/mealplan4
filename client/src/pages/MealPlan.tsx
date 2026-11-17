@@ -30,7 +30,7 @@ import { normalizeSearchText } from "@/lib/text-normalize";
 import { buildSharedIngredientsSummary, buildWholeSharedBatchIngredients } from "@/lib/shared-ingredients";
 import { hasEditedMealIngredients } from "@/lib/meal-entry-ingredients";
 import { getAvailableVariants, type PortionVariant } from "@shared/portion-variants";
-import { getAdditionalMealIngredients, isValidBatchAllocation, restoreRecipeIngredientsPreservingAdditions, servingsFromAllocation, splitBatchIngredientAmounts, type AllocationByPerson, type PortionsByPerson } from "@shared/portioning";
+import { getAdditionalMealIngredients, restoreRecipeIngredientsPreservingAdditions, splitBatchIngredientAmounts, type PortionsByPerson } from "@shared/portioning";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -554,16 +554,13 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
   const [selectedRecommendedBatchId, setSelectedRecommendedBatchId] = useState<number | null>(null);
   const [selectedFrequentAddons, setSelectedFrequentAddons] = useState<Record<"A" | "B", Record<number, number>>>({ A: {}, B: {} });
   const [addRecipeForBothPeople, setAddRecipeForBothPeople] = useState(false);
-  const [addRecipeToSharedBatches, setAddRecipeToSharedBatches] = useState(false);
   const [pendingSharedBatchPrompt, setPendingSharedBatchPrompt] = useState<{ recipeId: number; recipe: any } | null>(null);
   const [selectedRecipeServings, setSelectedRecipeServings] = useState(1);
   const [selectedPersonServings, setSelectedPersonServings] = useState<PortionsByPerson>({ A: 1, B: 1 });
-  const [batchAllocation, setBatchAllocation] = useState<AllocationByPerson>({ A: 50, B: 50 });
   const [selectedSuggestedRecipes, setSelectedSuggestedRecipes] = useState<Record<string, number>>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [recipeSort, setRecipeSort] = useState("popular");
-  const [sharedBatchServingsToCreate, setSharedBatchServingsToCreate] = useState<number>(1);
 
   const { data: recipes, isFetching: isFetchingRecipes } = useRecipeSearchIndex(isAddOpen || isSharedView);
   const filteredSharedRecipes = useMemo(() => {
@@ -1238,9 +1235,6 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
 
     const servingsForPerson = (person: "A" | "B") => {
       if (!addRecipeForBothPeople) return person === selectedPerson ? selectedRecipeServings : 0;
-      if (addRecipeToSharedBatches) {
-        return servingsFromAllocation(sharedBatchServingsToCreate, batchAllocation)[person];
-      }
       return selectedPersonServings[person];
     };
 
@@ -1254,9 +1248,6 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
     selectedPersonServings,
     selectedPerson,
     addRecipeForBothPeople,
-    addRecipeToSharedBatches,
-    sharedBatchServingsToCreate,
-    batchAllocation,
     selectedFrequentAddons,
   ]);
 
@@ -1278,11 +1269,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
 
   const handleAdd = (recipeId: number, recipe?: any, createSharedBatchOverride?: boolean) => {
     if (!selectedMealType || !selectedDateStr) return;
-    const shouldCreateSharedBatch = createSharedBatchOverride ?? addRecipeToSharedBatches;
-    if (addRecipeForBothPeople && shouldCreateSharedBatch && addRecipeToSharedBatches && !isValidBatchAllocation(batchAllocation)) {
-      toast({ title: "Niepoprawny podział", description: "Udziały obu osób muszą razem wynosić 100%.", variant: "destructive" });
-      return;
-    }
+    const shouldCreateSharedBatch = createSharedBatchOverride ?? false;
     if (isAddingRecipeRef.current) return;
 
     isAddingRecipeRef.current = true;
@@ -1294,7 +1281,6 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
     const getServingsForPerson = (person: "A" | "B") => {
       if (!recipe) return selectedRecipeServings;
       if (!addRecipeForBothPeople) return selectedRecipeServings;
-      if (shouldCreateSharedBatch && addRecipeToSharedBatches) return servingsFromAllocation(sharedBatchServingsToCreate, batchAllocation)[person];
       return selectedPersonServings[person];
     };
 
@@ -1307,9 +1293,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
       servings: isIndividualVariantRecipe(recipe) ? 1 : getServingsForPerson(person),
       ...(isIndividualVariantRecipe(recipe) ? { portionVariant: selectedPortionVariants[person] } : {}),
       createSharedBatch: isIndividualVariantRecipe(recipe) ? false : shouldCreateSharedBatch,
-      sharedBatchServings: shouldCreateSharedBatch
-        ? (addRecipeToSharedBatches ? sharedBatchServingsToCreate : Number(recipe?.servings) || undefined)
-        : undefined,
+      sharedBatchServings: shouldCreateSharedBatch ? Number(recipe?.servings) || undefined : undefined,
     }, {
       onError: unlockRecipeAddition,
       onSuccess: async (entry) => {
@@ -1329,9 +1313,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
                 isEaten: false,
                 servings: suggestion.servings,
                 createSharedBatch: shouldCreateSharedBatch,
-                sharedBatchServings: shouldCreateSharedBatch
-                  ? (addRecipeToSharedBatches ? sharedBatchServingsToCreate : Number(recipe?.servings) || undefined)
-                  : undefined,
+                sharedBatchServings: shouldCreateSharedBatch ? Number(recipe?.servings) || undefined : undefined,
               }, { onSuccess: () => resolve(), onError: () => resolve() });
             });
           }
@@ -1378,9 +1360,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
                   isEaten: false,
                   servings: suggestion.servings,
                   createSharedBatch: shouldCreateSharedBatch,
-                  sharedBatchServings: shouldCreateSharedBatch
-                    ? (addRecipeToSharedBatches ? sharedBatchServingsToCreate : Number(recipe?.servings) || undefined)
-                    : undefined,
+                  sharedBatchServings: shouldCreateSharedBatch ? Number(recipe?.servings) || undefined : undefined,
                 }, { onSuccess: () => resolve(), onError: () => resolve() });
               });
             }
@@ -1412,7 +1392,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
       ? Number(selectedPersonServings.A || 0) + Number(selectedPersonServings.B || 0)
       : Number(selectedRecipeServings) || 0;
 
-    if (!addRecipeToSharedBatches && recipeServings > plannedServings + 1e-9) {
+    if (recipeServings > plannedServings + 1e-9) {
       setPendingSharedBatchPrompt({ recipeId, recipe });
       return;
     }
@@ -3027,7 +3007,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
                       <label key={person} className="flex items-center justify-between gap-3 text-sm">
                         <span>{personName[person]}</span>
                         <div className="flex items-center gap-2">
-                          <Input type="number" step="0.25" min={0.25} className="h-8 w-20" disabled={addRecipeToSharedBatches} value={addRecipeToSharedBatches ? servingsFromAllocation(sharedBatchServingsToCreate, batchAllocation)[person] : selectedPersonServings[person]} onChange={(e) => setSelectedPersonServings((previous) => ({ ...previous, [person]: Math.max(0.25, Number(e.target.value) || 1) }))} />
+                          <Input type="number" step="0.25" min={0.25} className="h-8 w-20" value={selectedPersonServings[person]} onChange={(e) => setSelectedPersonServings((previous) => ({ ...previous, [person]: Math.max(0.25, Number(e.target.value) || 1) }))} />
                           <span className="text-xs text-muted-foreground">porcji</span>
                         </div>
                       </label>
@@ -3205,57 +3185,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
                   </div>
                 )}
 
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={addRecipeForBothPeople}
-                    onChange={(e) => setAddRecipeForBothPeople(e.target.checked)}
-                  />
-                  Dodaj ten przepis od razu dla obu osób
-                </label>
 
-                <label className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={addRecipeToSharedBatches}
-                    onChange={(e) => {
-                      setAddRecipeToSharedBatches(e.target.checked);
-                      if (e.target.checked) {
-                        setSharedBatchServingsToCreate(Math.max(0.25, Number(selectedRecipeToAdd?.servings) || selectedRecipeServings || 1));
-                      }
-                    }}
-                  />
-                  Przygotuj wspólnie i podziel między osoby
-                </label>
-
-                {addRecipeToSharedBatches && (
-                  <div className="grid gap-2 rounded-lg border border-emerald-200 bg-emerald-50/50 px-3 py-2">
-                    <label className="text-xs font-medium text-emerald-900">Przygotuj cały przepis</label>
-                    <Input
-                      type="number"
-                      step="0.25"
-                      min={0.25}
-                      value={sharedBatchServingsToCreate}
-                      onChange={(e) => setSharedBatchServingsToCreate(Math.max(0.25, Number(e.target.value) || 1))}
-                      className="h-8 w-28 bg-white"
-                    />
-                    {addRecipeForBothPeople && (
-                      <>
-                        <p className="pt-1 text-xs font-medium text-emerald-900">Podział</p>
-                        {(["A", "B"] as const).map((person) => (
-                          <label key={`allocation-${person}`} className="flex items-center justify-between gap-3 text-sm">
-                            <span>{personName[person]}</span>
-                            <div className="flex items-center gap-2">
-                              <Input type="number" min={0} max={100} value={batchAllocation[person]} onChange={(e) => setBatchAllocation((previous) => ({ ...previous, [person]: Math.max(0, Number(e.target.value) || 0) }))} className="h-8 w-20 bg-white" />
-                              <span className="text-xs text-muted-foreground">%</span>
-                            </div>
-                          </label>
-                        ))}
-                        {!isValidBatchAllocation(batchAllocation) && <p className="text-xs font-medium text-destructive">Podział musi razem wynosić 100%.</p>}
-                      </>
-                    )}
-                  </div>
-                )}
 
                 <DialogFooter className="gap-2 sm:gap-0">
                   <Button className="max-sm:w-full" variant="ghost" onClick={closeAddDialog} disabled={isAddingRecipe}>Anuluj</Button>
