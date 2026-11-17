@@ -191,13 +191,21 @@ function calculateEntryTotals(entry: any) {
   let price = 0;
   const ingredientsToUse = getEntryIngredientsForSummary(entry);
   const entryServings = Number(entry.servings) || 1;
+  const batchWeight = Number(entry.cookedBatch?.finishedWeightGrams) || 0;
+  const consumedWeight = Number(entry.consumedWeightGrams) || 0;
+  const expectedPortionWeight = batchWeight > 0 && Number(entry.cookedBatch?.totalServings) > 0
+    ? batchWeight * entryServings / Number(entry.cookedBatch.totalServings)
+    : 0;
+  const weightMultiplier = consumedWeight > 0 && expectedPortionWeight > 0
+    ? consumedWeight / expectedPortionWeight
+    : 1;
   const recipeServings = Number(entry.recipe?.servings || 1);
 
   if (ingredientsToUse.length > 0) {
     const occurrenceTracker = new Map<number, number>();
     ingredientsToUse.forEach((ri: any) => {
       if (!ri.ingredient) return;
-      const scaledAmount = calculateScaledAmount(resolveIngredientForScaling(entry, ri, occurrenceTracker), entryServings, recipeServings);
+      const scaledAmount = calculateScaledAmount(resolveIngredientForScaling(entry, ri, occurrenceTracker), entryServings, recipeServings) * weightMultiplier;
       const nutritionAmount = calculateNutritionAmount(scaledAmount, ri.ingredient);
       const purchaseAmount = calculatePurchaseAmount(scaledAmount, ri.ingredient);
       const multiplier = nutritionAmount / 100;
@@ -247,6 +255,7 @@ function summarizeDayEntries(date: string, entries: any[]) {
       mealType: entry.mealType,
       person: entry.person,
       servings: entry.servings,
+      consumedWeightGrams: entry.consumedWeightGrams ?? null,
       isEaten: entry.isEaten,
       recipeId: entry.recipeId,
       customName: entry.customName,
@@ -1163,7 +1172,7 @@ export async function registerRoutes(
       let { ingredients: ingredientsList, confirmVariantReset, ...updates } = req.body || {};
 
       const finalUpdates: any = {};
-      const allowedFields = ["servings", "isEaten", "person", "customName", "customCalories", "customProtein", "customCarbs", "customFat", "customSugar", "customFiber", "date", "mealType", "cookedBatchId", "portionVariant"];
+      const allowedFields = ["servings", "consumedWeightGrams", "isEaten", "person", "customName", "customCalories", "customProtein", "customCarbs", "customFat", "customSugar", "customFiber", "date", "mealType", "cookedBatchId", "portionVariant"];
       for (const field of allowedFields) {
         if (updates[field] !== undefined) finalUpdates[field] = updates[field];
       }
