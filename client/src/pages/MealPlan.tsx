@@ -4265,7 +4265,7 @@ function DaySection({ day, sectionId, recipes, userSettings, allAvailableIngredi
                                             onBlur={(e) => {
                                               const raw = e.currentTarget.value.trim();
                                               const nextWeight = raw === "" ? null : Number(raw);
-                                              if (raw !== "" && (!Number.isFinite(nextWeight) || nextWeight <= 0)) return;
+                                              if (raw !== "" && (nextWeight === null || !Number.isFinite(nextWeight) || nextWeight <= 0)) return;
                                               if ((Number(entry.consumedWeightGrams) || null) !== nextWeight) {
                                                 onUpdateEntry(entry, { consumedWeightGrams: nextWeight });
                                               }
