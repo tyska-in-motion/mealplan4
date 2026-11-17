@@ -1121,7 +1121,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
     setSelectedRecipeToAdd(null);
     setSelectedRecommendedBatchId(null);
     setSelectedFrequentAddons({ A: {}, B: {} });
-    setAddRecipeForBothPeople(true);
+    setAddRecipeForBothPeople(false);
     setSelectedRecipeServings(1);
     setSelectedPersonServings({ A: 1, B: 1 });
     setSelectedSuggestedRecipes({});
