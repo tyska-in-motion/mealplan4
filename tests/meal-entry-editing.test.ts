@@ -4,9 +4,9 @@ import { prepareMealEntryIngredientEdits } from "../shared/meal-entry-editing";
 
 test("manual edits become proportional base amounts for the current entry servings", () => {
   const saved = prepareMealEntryIngredientEdits([
-    { ingredientId: 1, amount: 150, originalIngredientId: 1, originalDisplayedAmount: 100, originalBaseAmount: 100, originalScalingType: "LINEAR" },
+    { ingredientId: 1, amount: 150, originalIngredientId: 1, originalDisplayedAmount: 200, originalBaseAmount: 100, originalScalingType: "LINEAR" },
     { ingredientId: 2, amount: 0, originalIngredientId: 2, originalDisplayedAmount: 50, originalBaseAmount: 50, originalScalingType: "LINEAR" },
-  ], 2, 1);
+  ], 1, 2);
   assert.deepEqual(saved, [{ ingredientId: 1, amount: 75, scalingType: "LINEAR" }]);
 });
 
