@@ -685,11 +685,19 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
           : Math.round(totalAmount * ratio);
         assignedAmount += amount;
 
+        const participantServings = Number(participants[index]?.servings) || 0;
+        // The split amount is the final quantity for this person's current serving
+        // count. Store it as a LINEAR base amount so later serving changes
+        // (including fractional changes such as +0.5) scale both ingredients
+        // and nutrition proportionally instead of remaining frozen as FIXED.
+        const baseAmount = participantServings > 0
+          ? amount * recipeServings / participantServings
+          : amount;
+
         participantAmounts[index].push({
           ingredientId: Number(ingredient.ingredientId),
-          amount,
-          // Meal-entry ingredient amounts are final per-person overrides.
-          scalingType: "FIXED" as const,
+          amount: Math.round(baseAmount * 100) / 100,
+          scalingType: participantServings > 0 ? "LINEAR" as const : "FIXED" as const,
         });
       });
     });
