@@ -31,7 +31,7 @@ import { normalizeSearchText } from "@/lib/text-normalize";
 import { buildSharedIngredientsSummary, buildWholeSharedBatchIngredients } from "@/lib/shared-ingredients";
 import { hasEditedMealIngredients } from "@/lib/meal-entry-ingredients";
 import { getAvailableVariants, type PortionVariant } from "@shared/portion-variants";
-import { getAdditionalMealIngredients, restoreRecipeIngredientsPreservingAdditions, splitBatchIngredientAmounts, type PortionsByPerson } from "@shared/portioning";
+import { getAdditionalMealIngredients, restoreRecipeIngredientsPreservingAdditions, rescaleFixedBatchAllocationIngredients, splitBatchIngredientAmounts, type PortionsByPerson } from "@shared/portioning";
 import { prepareMealEntryIngredientEdits } from "@shared/meal-entry-editing";
 import {
   AlertDialog,
@@ -449,13 +449,35 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
     }
 
     const batch = allKnownSharedBatches.get(batchId);
+    const currentServings = Number(entry?.servings) || 1;
+    const requestedServings = Math.max(0.25, Number(updates?.servings) || currentServings);
+    const recipe = batch?.recipe || entry?.recipe;
+    const recipeIngredients = recipe?.ingredients || [];
+    const recipeServings = Number(recipe?.servings) || 1;
+    const buildServingsUpdates = (nextServings: number) => {
+      const ingredients = Array.isArray(entry?.ingredients) && entry.ingredients.length > 0
+        ? rescaleFixedBatchAllocationIngredients(
+            entry.ingredients,
+            recipeIngredients,
+            currentServings,
+            nextServings,
+            recipeServings,
+          )
+        : undefined;
+      return {
+        ...updates,
+        servings: nextServings,
+        ...(ingredients ? { ingredients } : {}),
+      };
+    };
+
+    // Even when the batch list is temporarily unavailable, the meal snapshot
+    // contains the recipe ingredient definitions needed to rescale this entry.
     if (!batch) {
-      updateMealEntry({ id: entry.id, updates });
+      updateMealEntry({ id: entry.id, updates: buildServingsUpdates(requestedServings) });
       return;
     }
 
-    const currentServings = Number(entry?.servings) || 1;
-    const requestedServings = Math.max(0.25, Number(updates?.servings) || currentServings);
     const allocatedServings = Number(batch?.allocatedServings) || 0;
     const totalServings = Number(batch?.totalServings) || 0;
     const projectedAllocated = allocatedServings - currentServings + requestedServings;
@@ -463,7 +485,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
     if (projectedAllocated <= totalServings + 1e-9) {
       updateMealEntry({
         id: entry.id,
-        updates: { ...updates, servings: requestedServings },
+        updates: buildServingsUpdates(requestedServings),
       });
       return;
     }
@@ -473,7 +495,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
     if (requestedServings > cappedServings + 1e-9) {
       updateMealEntry({
         id: entry.id,
-        updates: { ...updates, servings: cappedServings },
+        updates: buildServingsUpdates(cappedServings),
       });
     }
 
@@ -502,7 +524,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
         });
         updateMealEntry({
           id: entry.id,
-          updates: { ...updates, servings: requestedServings },
+          updates: buildServingsUpdates(requestedServings),
         });
       } catch {
         // updateBatch mutation already shows a toast
@@ -527,8 +549,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
       updateMealEntry({
         id: entry.id,
         updates: {
-          ...updates,
-          servings: requestedServings,
+          ...buildServingsUpdates(requestedServings),
           cookedBatchId: Number(newBatch?.id) || undefined,
         },
       });
