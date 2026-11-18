@@ -1,6 +1,10 @@
 export type EditableMealIngredient = {
   ingredientId: number;
   amount: number;
+  isNewIngredient?: boolean;
+  scalingType?: "LINEAR" | "FIXED" | "STEP" | "FORMULA" | null;
+  scalingFormula?: string | null;
+  stepThresholds?: Array<{ minServings: number; maxServings?: number | null; amount: number }> | null;
   originalIngredientId?: number;
   originalDisplayedAmount?: number;
   originalBaseAmount?: number;
@@ -36,9 +40,20 @@ export function prepareMealEntryIngredientEdits(
     .map((ingredient) => {
       const ingredientId = Number(ingredient.ingredientId);
       const amount = Number(ingredient.amount) || 0;
+      const isNewIngredient = ingredient.isNewIngredient === true;
       const isUnchangedOriginal = Number(ingredient.originalIngredientId) === ingredientId
         && Number.isFinite(Number(ingredient.originalDisplayedAmount))
         && amount === Number(ingredient.originalDisplayedAmount);
+
+      if (isNewIngredient) {
+        return {
+          ingredientId,
+          amount,
+          scalingType: ingredient.scalingType || "LINEAR",
+          scalingFormula: ingredient.scalingFormula,
+          stepThresholds: ingredient.stepThresholds,
+        };
+      }
 
       if (isUnchangedOriginal) {
         return {
