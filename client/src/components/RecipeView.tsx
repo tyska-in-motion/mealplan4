@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Clock, ChefHat, CalendarPlus, Settings2, Play, Pause, RotateCcw, ChefHatIcon, CalendarClock, Download, Printer } from "lucide-react";
+import { Clock, ChefHat, CalendarPlus, Settings2, Play, Pause, RotateCcw, ChefHatIcon, CalendarClock, Download, Printer, Star } from "lucide-react";
 import { calculateNutritionAmount, calculatePurchaseAmount, calculateScaledAmount } from "@shared/scaling";
 import type { InstructionStep } from "@shared/schema";
 import { getDisplayInstructionSteps } from "@/lib/instruction-steps";
@@ -64,6 +64,9 @@ interface RecipeViewProps {
   servingsLockedReason?: string;
   onRestoreOriginalIngredients?: () => void;
   compact?: boolean;
+  recipeRating?: { average: number; count: number } | null;
+  mealEntryRating?: number | null;
+  mealEntryRatingPerson?: string;
 }
 
 interface CookingStepTimer {
@@ -167,6 +170,9 @@ export function RecipeView({
   servingsLockedReason,
   onRestoreOriginalIngredients,
   compact = false,
+  recipeRating = null,
+  mealEntryRating = null,
+  mealEntryRatingPerson,
 }: RecipeViewProps) {
   const { toast } = useToast();
   const [isCookingMode, setIsCookingMode] = useState(false);
@@ -950,6 +956,24 @@ ${imageSource ? '<div class="hero"><img id="recipe-photo" src="' + escapeRecipeC
                 </span>
               ))}
             </div>
+            {recipeRating && recipeRating.count > 0 && (
+              <div className="mt-2 flex items-center gap-1.5 text-sm" aria-label={`Średnia ocena ${recipeRating.average.toFixed(1)} na podstawie ${recipeRating.count} ocen`}>
+                <Star className="h-4 w-4 fill-amber-400 text-amber-500" />
+                <span className="font-semibold tabular-nums">{recipeRating.average.toFixed(1)}</span>
+                <span className="text-xs text-muted-foreground">({recipeRating.count} {recipeRating.count === 1 ? "ocena" : recipeRating.count < 5 ? "oceny" : "ocen"})</span>
+              </div>
+            )}
+            {mealEntryRating !== null && mealEntryRating !== undefined && (
+              <div className="mt-2 flex items-center gap-1.5 text-sm" aria-label={`Ocena ${mealEntryRating} na 5 gwiazdek`}>
+                <span className="text-xs text-muted-foreground">Ocena {mealEntryRatingPerson || "tej porcji"}:</span>
+                <span className="flex items-center gap-0.5">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star key={star} className={star <= mealEntryRating ? "h-4 w-4 fill-amber-400 text-amber-500" : "h-4 w-4 text-muted-foreground/30"} />
+                  ))}
+                </span>
+                <span className="font-semibold tabular-nums">{mealEntryRating}/5</span>
+              </div>
+            )}
             <div className="flex gap-2 mt-2 text-muted-foreground flex-wrap">
               <span className="flex items-center gap-1 bg-secondary/50 px-2 py-1 rounded-lg text-xs"><Clock className="w-4 h-4" /> {recipe.prepTime} min</span>
               <span className="flex items-center gap-1 bg-secondary/50 px-2 py-1 rounded-lg text-xs"><ChefHat className="w-4 h-4" /> {baseIngredients.length} składników</span>
