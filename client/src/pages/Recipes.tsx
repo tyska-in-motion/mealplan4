@@ -2064,7 +2064,7 @@ export default function Recipes() {
         recipe={viewingRecipe}
         recipeRating={recipeRatings[String(viewingRecipe?.id)] || null}
         isOpen={!!viewingRecipe}
-        onClose={() => setViewingRecipe(null)
+        onClose={() => setViewingRecipe(null)}
         onAddToPlan={(recipe, servingsOverride) => {
           setRecipeToPlan(recipe);
           setViewingRecipe(null);
