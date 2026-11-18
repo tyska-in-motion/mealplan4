@@ -802,11 +802,15 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
   const saveIngredients = () => {
     if (!viewingMeal || !viewingRecipe) return;
 
-    const ingredientsData = prepareMealEntryIngredientEdits(
-      editingMealIngredients,
-      Number(viewingRecipe.servings) || 1,
-      Number(viewingMeal.servings) || 1,
-    );
+    const ingredientsData = editingMealIngredients
+      .filter((ingredient) => Number(ingredient.ingredientId) > 0)
+      .map((ingredient) => ({
+        ingredientId: Number(ingredient.ingredientId),
+        amount: Number(ingredient.amount) || 0,
+        scalingType: ingredient.scalingType || "LINEAR",
+        scalingFormula: ingredient.scalingFormula,
+        stepThresholds: ingredient.stepThresholds,
+      }));
 
     if (ingredientsData.length === 0) {
       toast({ title: "Błąd", description: "Dodaj przynajmniej jeden składnik.", variant: "destructive" });
@@ -931,7 +935,11 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
     updateMealEntry({
       id: viewingMeal.id,
       updates: {
-        ingredients: ingredientsData,
+        ingredients: prepareMealEntryIngredientEdits(
+          editingMealIngredients,
+          Number(viewingRecipe.servings) || 1,
+          Number(viewingMeal.servings) || 1,
+        ),
         isEaten: !!viewingMeal.isEaten,
         date: viewingMeal.date,
         mealType: viewingMeal.mealType
