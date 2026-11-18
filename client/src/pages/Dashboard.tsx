@@ -2113,7 +2113,7 @@ export default function Dashboard() {
           <DialogHeader>
             <DialogTitle>Jak oceniasz ten posiłek?</DialogTitle>
             <DialogDescription>
-              {ratingMeal?.recipe?.name || "Przepis"} · {ratingMeal?.person === "B" ? "Tysia" : "Mati"}
+              {ratingMeal?.recipe?.name || "Przepis"} · {ratingMeal?.person === "A" ? "Tysia" : "Mati"}
               <br />
               Ocena dotyczy tylko tego konkretnego posiłku. Możesz też pominąć ocenę.
             </DialogDescription>
