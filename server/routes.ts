@@ -436,12 +436,35 @@ export async function registerRoutes(
 
   // Recipes
   app.get(api.recipes.searchIndex.path, async (_req, res) => {
-    const [items, frequencyMap] = await Promise.all([
+    const [items, frequencyMap, ratingState] = await Promise.all([
       storage.getRecipeSearchIndex(),
       storage.getRecipeEatCounts(),
+      storage.getAppState("meal-entry-ratings"),
     ]);
+    // Include the latest rating for each meal entry directly in the recipe search index.
+    // This keeps recipe-card ratings available in the same request as the recipe list.
+    const latestRatingByEntry = new Map<number, any>();
+    for (const item of Array.isArray(ratingState) ? ratingState : []) {
+      const entryId = Number(item?.mealEntryId);
+      const recipeId = Number(item?.recipeId);
+      const rating = Number(item?.rating);
+      if (!Number.isInteger(entryId) || entryId <= 0 || !Number.isInteger(recipeId) || recipeId <= 0 || !Number.isFinite(rating) || rating < 1 || rating > 5) continue;
+      const previous = latestRatingByEntry.get(entryId);
+      if (!previous || String(item?.createdAt || "") > String(previous?.createdAt || "")) {
+        latestRatingByEntry.set(entryId, item);
+      }
+    }
+    const ratingTotalsByRecipe = new Map<number, { sum: number; count: number }>();
+    for (const item of latestRatingByEntry.values()) {
+      const recipeId = Number(item.recipeId);
+      const total = ratingTotalsByRecipe.get(recipeId) || { sum: 0, count: 0 };
+      total.sum += Number(item.rating);
+      total.count += 1;
+      ratingTotalsByRecipe.set(recipeId, total);
+    }
 
     const itemsWithStats = items.map((r: any) => {
+      const ratingTotal = ratingTotalsByRecipe.get(Number(r.id)) || { sum: 0, count: 0 };
       const stats = {
         calories: 0,
         protein: 0,
@@ -449,7 +472,9 @@ export async function registerRoutes(
         fat: 0,
         sugar: 0,
         fiber: 0,
-        eatCount: frequencyMap.get(r.id) || 0
+        eatCount: frequencyMap.get(r.id) || 0,
+        ratingAverage: ratingTotal.count > 0 ? Math.round((ratingTotal.sum / ratingTotal.count) * 10) / 10 : null,
+        ratingCount: ratingTotal.count,
       };
 
       (r.ingredients || []).forEach((ri: any) => {
