@@ -45,6 +45,55 @@ export function splitBatchIngredientAmounts<T extends { servings?: number | null
   })));
 }
 
+
+/**
+ * Batch allocations store each person's recipe ingredients as final FIXED amounts.
+ * When that allocation changes size, scale those fixed snapshots by the recipe's
+ * configured scaling ratio. Keep per-meal additions fixed, and leave LINEAR/STEP/
+ * FORMULA overrides alone because the normal serving calculation handles them.
+ */
+export function rescaleFixedBatchAllocationIngredients(
+  mealIngredients: Array<{ ingredientId: number; amount: number; scalingType?: "LINEAR" | "FIXED" | "STEP" | "FORMULA" | null }>,
+  recipeIngredients: Array<{ ingredientId: number; amount?: number; baseAmount?: number; scalingType?: "LINEAR" | "FIXED" | "STEP" | "FORMULA" | null; scalingFormula?: string | null; stepThresholds?: Array<{ minServings: number; maxServings?: number | null; amount: number }> | null }>,
+  previousServings: number,
+  nextServings: number,
+  recipeServings: number,
+) {
+  const previous = Number(previousServings) > 0 ? Number(previousServings) : 1;
+  const next = Number(nextServings) > 0 ? Number(nextServings) : previous;
+  const baseServings = Number(recipeServings) > 0 ? Number(recipeServings) : 1;
+  const sourceCounts = new Map<number, number>();
+  for (const source of recipeIngredients || []) {
+    const id = Number(source.ingredientId);
+    sourceCounts.set(id, (sourceCounts.get(id) || 0) + 1);
+  }
+  const occurrences = new Map<number, number>();
+
+  return (mealIngredients || []).map((ingredient) => {
+    const id = Number(ingredient.ingredientId);
+    const occurrence = (occurrences.get(id) || 0) + 1;
+    occurrences.set(id, occurrence);
+    if (occurrence > (sourceCounts.get(id) || 0) || (ingredient.scalingType || "FIXED") !== "FIXED") {
+      return { ingredientId: id, amount: Number(ingredient.amount) || 0, scalingType: ingredient.scalingType || "FIXED" };
+    }
+
+    const source = recipeIngredients.filter((row) => Number(row.ingredientId) === id)[occurrence - 1];
+    if (!source || (source.scalingType || "LINEAR") === "FIXED") {
+      return { ingredientId: id, amount: Number(ingredient.amount) || 0, scalingType: "FIXED" as const };
+    }
+
+    const sourceForScaling = { ...source, baseAmount: Number(source.baseAmount ?? source.amount) || 0 };
+    const oldExpected = calculateScaledAmount(sourceForScaling, previous, baseServings);
+    const newExpected = calculateScaledAmount(sourceForScaling, next, baseServings);
+    const ratio = oldExpected > 0 ? newExpected / oldExpected : next / previous;
+    return {
+      ingredientId: id,
+      amount: (Number(ingredient.amount) || 0) * (Number.isFinite(ratio) && ratio >= 0 ? ratio : next / previous),
+      scalingType: "FIXED" as const,
+    };
+  });
+}
+
 /** Keeps meal-specific additions out of a shared-batch ingredient update. */
 export function getAdditionalMealIngredients(
   mealIngredients: Array<{ ingredientId: number; amount: number; scalingType?: "LINEAR" | "FIXED" | "STEP" | "FORMULA" }>,
