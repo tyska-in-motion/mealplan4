@@ -4527,7 +4527,7 @@ function DaySection({ day, sectionId, recipes, userSettings, allAvailableIngredi
           <DialogHeader>
             <DialogTitle>Jak oceniasz ten posiłek?</DialogTitle>
             <DialogDescription>
-              {ratingEntry?.recipe?.name || "Przepis"} · {ratingEntry?.person === "B" ? "Tysia" : "Mati"}
+              {ratingEntry?.recipe?.name || "Przepis"} · {ratingEntry?.person === "A" ? "Tysia" : "Mati"}
               <br />
               Ocena dotyczy tylko tego konkretnego posiłku. Możesz też pominąć ocenę.
             </DialogDescription>
