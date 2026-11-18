@@ -1166,6 +1166,18 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/meal-plan/entry/:id/rating", async (req, res) => {
+    const id = Number(req.params.id);
+    const entry = await storage.getMealEntryById(id);
+    if (!entry) return res.status(404).json({ message: "Nie znaleziono wpisu posiłku" });
+    const current = await storage.getAppState("meal-entry-ratings");
+    const ratings = Array.isArray(current) ? current : [];
+    const latest = ratings
+      .filter((item: any) => Number(item.mealEntryId) === id)
+      .sort((left: any, right: any) => String(right.createdAt || "").localeCompare(String(left.createdAt || "")))[0];
+    res.json(latest ? { rating: Number(latest.rating), person: latest.person, date: latest.date } : { rating: null });
+  });
+
   app.post("/api/meal-plan/entry/:id/rating", async (req, res) => {
     try {
       const id = Number(req.params.id);
