@@ -2001,11 +2001,11 @@ export default function Recipes() {
                       </span>
                     ))}
                   </div>
-                  {recipeRatings[String(recipe.id)]?.count > 0 && (
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground" aria-label={`Średnia ocena ${recipeRatings[String(recipe.id)].average.toFixed(1)} na podstawie ${recipeRatings[String(recipe.id)].count} ocen`}>
+                  {Number(recipe.stats?.ratingCount) > 0 && (
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground" aria-label={`Średnia ocena ${Number(recipe.stats.ratingAverage).toFixed(1)} na podstawie ${recipe.stats.ratingCount} ocen`}>
                       <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-500" />
-                      <span className="font-semibold text-foreground tabular-nums">{recipeRatings[String(recipe.id)].average.toFixed(1)}</span>
-                      <span>({recipeRatings[String(recipe.id)].count})</span>
+                      <span className="font-semibold text-foreground tabular-nums">{Number(recipe.stats.ratingAverage).toFixed(1)}</span>
+                      <span>({recipe.stats.ratingCount})</span>
                     </div>
                   )}
 
