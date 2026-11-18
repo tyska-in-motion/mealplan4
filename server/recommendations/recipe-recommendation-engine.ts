@@ -19,7 +19,7 @@ export type RecommendationCandidate = {
   history: RecommendationHistoryEvent[];
   feedback?: RecommendationFeedback | null;
 };
-export type RecommendationScore = { recipeId: number; score: number; reasons: string[]; breakdown: { macro: number; history: number; preferences: number; variety: number; plan: number; produce: number; rating: number } };
+export type RecommendationScore = { recipeId: number; score: number; reasons: string[]; breakdown: { macro: number; history: number; preferences: number; variety: number; plan: number; produce: number; rating: number; calorieCoverage: number } };
 
 const clamp = (value: number, min = 0, max = 100) => Math.max(min, Math.min(max, value));
 const valid = (value: unknown) => Number.isFinite(Number(value)) ? Number(value) : 0;
@@ -92,6 +92,19 @@ export function scoreRecipeRecommendations(input: {
       : targetPerson === "B"
         ? macroFit(candidate.nutritionB, input.balances.B)
         : (macroFit(candidate.nutritionA, input.balances.A) + macroFit(candidate.nutritionB, input.balances.B)) / 2;
+    // Prefer more substantial meals so the daily calorie target can be covered
+    // with fewer planned meals. This is a ranking bonus only; macro eligibility
+    // above remains the hard limit for each person.
+    const calorieCoverageFor = (nutrition: MacroTotals, balance: PersonDayBalance) => {
+      const remaining = Math.max(0, valid(balance.target.calories) - valid(balance.consumed.calories));
+      if (remaining <= 0) return 0;
+      return clamp((Math.max(0, valid(nutrition.calories)) / remaining) * 100);
+    };
+    const calorieCoverage = targetPerson === "A"
+      ? calorieCoverageFor(candidate.nutritionA, input.balances.A)
+      : targetPerson === "B"
+        ? calorieCoverageFor(candidate.nutritionB, input.balances.B)
+        : (calorieCoverageFor(candidate.nutritionA, input.balances.A) + calorieCoverageFor(candidate.nutritionB, input.balances.B)) / 2;
     const events = candidate.history.filter((event) => dayAge(event.date, input.date) <= 60 && (!input.mealType || event.mealType === input.mealType));
     const historyStrength = events.reduce((sum, event) => {
       const age = dayAge(event.date, input.date);
@@ -127,17 +140,19 @@ export function scoreRecipeRecommendations(input: {
     const rating = ratingWeight > 0
       ? Math.round((ratingAverage - 3) * 6 * Math.min(1, ratingWeight / 3))
       : 0;
-    const breakdown = { macro, history, preferences, variety, plan, produce, rating };
+    const breakdown = { macro, history, preferences, variety, plan, produce, rating, calorieCoverage };
     let score = input.mealType
       ? history * 0.55 + preferences * 0.20 + variety * 0.20 + plan * 0.05
       : macro * 0.35 + history * 0.25 + preferences * 0.15 + variety * 0.15 + plan * 0.10;
     if (produce > 0) score += 12;
     score += rating;
+    score += calorieCoverage * 0.25;
     const reasons: string[] = [];
     if (macro >= 70) reasons.push("Dobrze pasuje do pozostałego bilansu makro");
     if (targetPerson !== "both" && bothFit) reasons.push("Pasuje do bilansu obu osób");
     if (history >= 65) reasons.push("Pasuje do dotychczasowych wyborów");
     if (produce > 0) reasons.push("Co najmniej 100 g warzyw lub owoców w porcji");
+    if (calorieCoverage >= 50) reasons.push("Pokrywa dużą część pozostałego zapotrzebowania kalorycznego");
     if (rating >= 5) reasons.push("Wysokie oceny z poprzednich posiłków");
     else if (rating <= -5) reasons.push("Niższe oceny z poprzednich posiłków");
     if (candidate.isFavorite) reasons.push("Przepis oznaczony jako ulubiony");
