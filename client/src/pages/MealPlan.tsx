@@ -588,6 +588,8 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
   const [viewingMealRating, setViewingMealRating] = useState<number | null>(null);
   const [viewingServings, setViewingServings] = useState<number | undefined>(undefined);
   const [viewingSharedPerson, setViewingSharedPerson] = useState<"A" | "B">("A");
+  const [isSharedRecipeView, setIsSharedRecipeView] = useState(false);
+
   useEffect(() => {
     const ratingEntryId = isSharedRecipeView && viewingMeal?.sharedParticipantEntries
       ? viewingMeal.sharedParticipantEntries[viewingSharedPerson]?.id
@@ -612,9 +614,6 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
       });
     return () => { cancelled = true; };
   }, [viewingMeal?.id, viewingMeal?.isWholeRecipeView, viewingMeal?.sharedParticipantEntries, isSharedRecipeView, viewingSharedPerson]);
-
-
-  const [isSharedRecipeView, setIsSharedRecipeView] = useState(false);
 
   const [editingMealIngredients, setEditingMealIngredients] = useState<any[]>([]);
   const [viewingSharedBatchId, setViewingSharedBatchId] = useState<number | null>(null);
