@@ -1175,6 +1175,10 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
     } else if (recipeTab === "rare") {
       const eligibleIds = new Set((mealRecommendations?.rarelyEatenRecipeIds || []).map((id: number) => Number(id)));
       result = filteredRecipes.filter((recipe: any) => eligibleIds.has(Number(recipe.id))).sort((a: any, b: any) => {
+        // Within the rarely-eaten set, show higher-calorie portions first.
+        // The lower historical eat count remains the tie-breaker.
+        const calorieDifference = getRecipeCaloriesForCurrentTarget(b) - getRecipeCaloriesForCurrentTarget(a);
+        if (calorieDifference !== 0) return calorieDifference;
         const countDifference = (Number(a?.stats?.eatCount) || 0) - (Number(b?.stats?.eatCount) || 0);
         if (countDifference !== 0) return countDifference;
         return String(a?.name || "").localeCompare(String(b?.name || ""), "pl");
