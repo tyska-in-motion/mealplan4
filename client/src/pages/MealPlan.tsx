@@ -1166,15 +1166,29 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
     ? (getRecipeCaloriesIncludingDefaultAddons(recipe, "A") + getRecipeCaloriesIncludingDefaultAddons(recipe, "B")) / 2
     : getRecipeCaloriesIncludingDefaultAddons(recipe, selectedPerson);
 
+  const isExcludedRecommendationCategory = (recipe: any) => {
+    const excludedCategories = new Set(["deser", "desery", "napój", "napoje", "sos", "sosy"]);
+    const categoryValues = [
+      recipe?.category,
+      recipe?.recipeCategory,
+      ...(Array.isArray(recipe?.tags) ? recipe.tags : []),
+    ];
+    return categoryValues.some((value) =>
+      excludedCategories.has(String(value ?? "").trim().toLocaleLowerCase("pl-PL"))
+    );
+  };
+
   const displayedRecipes = useMemo(() => {
     let result: any[];
     if (recipeTab === "recommended") {
       const rankedIds = (mealRecommendations?.recommendations || []).map((item: any) => Number(item.recipeId));
       const byId = new Map((filteredRecipes || []).map((recipe: any) => [Number(recipe.id), recipe]));
-      result = rankedIds.map((id: number) => byId.get(id)).filter(Boolean);
+      result = rankedIds.map((id: number) => byId.get(id)).filter((recipe: any) => recipe && !isExcludedRecommendationCategory(recipe));
     } else if (recipeTab === "rare") {
       const eligibleIds = new Set((mealRecommendations?.rarelyEatenRecipeIds || []).map((id: number) => Number(id)));
-      result = filteredRecipes.filter((recipe: any) => eligibleIds.has(Number(recipe.id))).sort((a: any, b: any) => {
+      result = filteredRecipes.filter((recipe: any) =>
+        eligibleIds.has(Number(recipe.id)) && !isExcludedRecommendationCategory(recipe)
+      ).sort((a: any, b: any) => {
         // Within the rarely-eaten set, show higher-calorie portions first.
         // The lower historical eat count remains the tie-breaker.
         const calorieDifference = getRecipeCaloriesForCurrentTarget(b) - getRecipeCaloriesForCurrentTarget(a);
