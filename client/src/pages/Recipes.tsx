@@ -6,7 +6,7 @@ import { useAllIngredients } from "@/hooks/use-ingredients";
 import { useAddMealEntry, useDayPlan, useUpdateMealEntry } from "@/hooks/use-meal-plan";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Search, Clock, Trash2, ChefHat, X, Eye, Edit2, CalendarPlus, Check, ChevronsUpDown, Heart } from "lucide-react";
+import { Plus, Search, Clock, Trash2, ChefHat, X, Eye, Edit2, CalendarPlus, Check, ChevronsUpDown, Heart, Star } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { useToast } from "@/hooks/use-toast";
@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
+import { fetchWithTimeout } from "@/lib/queryClient";
 import { buildInstructionSteps, parseInstructionLines, type InstructionLink } from "@/lib/instruction-steps";
 import { normalizeSearchText } from "@/lib/text-normalize";
 import { getAvailableVariants, normalizeOptionalVariants } from "@shared/portion-variants";
@@ -129,6 +130,17 @@ export default function Recipes() {
   // Dzięki temu wpisywanie kolejnych liter nie odpala serii kosztownych zapytań do API
   // i można poprawnie sortować wyniki po liczbie trafionych składników z wpisanej listy.
   const { data: recipes, isLoading } = useRecipeSearchIndex();
+  const { data: recipeRatings = {} } = useQuery<Record<string, { average: number; count: number }>>({
+    queryKey: ["/api/recipes/ratings"],
+    queryFn: async () => {
+      const response = await fetchWithTimeout("/api/recipes/ratings");
+      if (!response.ok) throw new Error("Nie udało się pobrać ocen przepisów.");
+      return response.json();
+    },
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+  });
+
   const recipePagination = (recipes as any)?.pagination;
   const recipeTotal = recipePagination?.total ?? recipes?.length ?? 0;
   const { data: availableIngredients } = useAllIngredients();
@@ -1989,6 +2001,13 @@ export default function Recipes() {
                       </span>
                     ))}
                   </div>
+                  {recipeRatings[String(recipe.id)]?.count > 0 && (
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground" aria-label={`Średnia ocena ${recipeRatings[String(recipe.id)].average.toFixed(1)} na podstawie ${recipeRatings[String(recipe.id)].count} ocen`}>
+                      <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-500" />
+                      <span className="font-semibold text-foreground tabular-nums">{recipeRatings[String(recipe.id)].average.toFixed(1)}</span>
+                      <span>({recipeRatings[String(recipe.id)].count})</span>
+                    </div>
+                  )}
 
                   <div className="text-[11px] font-bold text-primary bg-primary/10 px-2 py-1 rounded-md text-center">
                     {formatDefaultServingsCalories(recipe)}
@@ -2043,6 +2062,7 @@ export default function Recipes() {
       )}
       <RecipeView
         recipe={viewingRecipe}
+        recipeRating={recipeRatings[String(viewingRecipe?.id)] || null}
         isOpen={!!viewingRecipe}
         onClose={() => setViewingRecipe(null)}
         onAddToPlan={(recipe, servingsOverride) => {

@@ -1166,6 +1166,40 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/recipes/ratings", async (_req, res) => {
+    const current = await storage.getAppState("meal-entry-ratings");
+    const ratings = Array.isArray(current) ? current : [];
+    const latestByEntry = new Map<number, any>();
+    for (const item of ratings) {
+      const entryId = Number(item?.mealEntryId);
+      const recipeId = Number(item?.recipeId);
+      const rating = Number(item?.rating);
+      if (!entryId || !recipeId || rating < 1 || rating > 5) continue;
+      const previous = latestByEntry.get(entryId);
+      if (!previous || String(item?.createdAt || "") > String(previous?.createdAt || "")) {
+        latestByEntry.set(entryId, item);
+      }
+    }
+
+    const totals = new Map<number, { sum: number; count: number }>();
+    for (const item of latestByEntry.values()) {
+      const recipeId = Number(item.recipeId);
+      const currentTotal = totals.get(recipeId) || { sum: 0, count: 0 };
+      currentTotal.sum += Number(item.rating);
+      currentTotal.count += 1;
+      totals.set(recipeId, currentTotal);
+    }
+
+    const result: Record<number, { average: number; count: number }> = {};
+    for (const [recipeId, total] of totals.entries()) {
+      result[recipeId] = {
+        average: Math.round((total.sum / total.count) * 10) / 10,
+        count: total.count,
+      };
+    }
+    res.json(result);
+  });
+
   app.get("/api/meal-plan/entry/:id/rating", async (req, res) => {
     const id = Number(req.params.id);
     const entry = await storage.getMealEntryById(id);

@@ -2664,29 +2664,13 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
         </div>
       )}
 
-      {viewingMeal && !viewingMeal.isWholeRecipeView && (
-        <div className="mx-auto mb-3 flex w-full max-w-3xl items-center justify-between gap-3 rounded-xl border bg-background px-4 py-3">
-          <div>
-            <p className="text-sm font-medium">Ocena {isSharedRecipeView && viewingMeal.sharedParticipantEntries
-              ? (viewingSharedPerson === "A" ? "Tysi" : "Matiego")
-              : (viewingMeal.person === "B" ? "Matiego" : "Tysi")}</p>
-            <p className="text-xs text-muted-foreground">Ocena tego konkretnego wpisu</p>
-          </div>
-          {viewingMealRating !== null ? (
-            <div className="flex items-center gap-0.5" aria-label={`Ocena: ${viewingMealRating} na 5 gwiazdek`}>
-              {[1, 2, 3, 4, 5].map((star) => (
-                <Star key={star} className={cn("h-5 w-5", star <= viewingMealRating ? "fill-amber-400 text-amber-500" : "text-muted-foreground/30")} />
-              ))}
-              <span className="ml-1 text-sm font-semibold tabular-nums">{viewingMealRating}/5</span>
-            </div>
-          ) : (
-            <span className="text-sm text-muted-foreground">Brak oceny</span>
-          )}
-        </div>
-      )}
       <Suspense fallback={null}>
       <RecipeView
         recipe={viewingRecipe}
+        mealEntryRating={viewingMealRating}
+        mealEntryRatingPerson={isSharedRecipeView && viewingMeal?.sharedParticipantEntries
+          ? (viewingSharedPerson === "A" ? "Tysi" : "Matiego")
+          : (viewingMeal?.person === "B" ? "Matiego" : "Tysi")}
         isOpen={!!viewingRecipe}
         onClose={() => {
           setViewingRecipe(null);
