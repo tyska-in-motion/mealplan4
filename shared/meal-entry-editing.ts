@@ -36,7 +36,7 @@ export function prepareMealEntryIngredientEdits(
   const safeEntryServings = Number(entryServings) > 0 ? Number(entryServings) : 1;
 
   return ingredients
-    .filter((ingredient) => Number(ingredient.ingredientId) > 0)
+    .filter((ingredient) => Number(ingredient.ingredientId) > 0 && Number(ingredient.amount) > 0)
     .map((ingredient) => {
       const ingredientId = Number(ingredient.ingredientId);
       const amount = Number(ingredient.amount) || 0;
