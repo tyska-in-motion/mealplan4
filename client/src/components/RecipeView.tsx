@@ -314,25 +314,55 @@ export function RecipeView({
   }, [isCookingMode]);
 
   useEffect(() => {
-    if (!isCookingMode || !("wakeLock" in navigator)) return;
+    // Keep the screen awake whenever the recipe dialog is open, not only
+    // after entering Cooking Mode. This lets users read the ingredient list
+    // and instructions hands-free while preparing a meal.
+    if (!isOpen || typeof navigator === "undefined" || !("wakeLock" in navigator)) return;
 
-    let wakeLock: any;
+    let wakeLock: any = null;
+    let disposed = false;
+    let requestInFlight = false;
+
     const requestWakeLock = async () => {
+      if (disposed || document.visibilityState !== "visible" || requestInFlight) return;
+      if (wakeLock && !wakeLock.released) return;
+
+      requestInFlight = true;
       try {
         wakeLock = await (navigator as any).wakeLock.request("screen");
+        if (disposed && wakeLock) {
+          await wakeLock.release().catch(() => undefined);
+          wakeLock = null;
+        }
       } catch {
-        // Ignore if the browser blocks Wake Lock API.
+        // Wake Lock can be unavailable or denied by the browser/operating system.
+      } finally {
+        requestInFlight = false;
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        // Browsers release the lock when the tab is backgrounded. Reacquire it
+        // when the user returns to the open recipe.
+        requestWakeLock();
+      } else if (wakeLock && !wakeLock.released) {
+        wakeLock.release().catch(() => undefined);
+        wakeLock = null;
       }
     };
 
     requestWakeLock();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      if (wakeLock) {
+      disposed = true;
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      if (wakeLock && !wakeLock.released) {
         wakeLock.release().catch(() => undefined);
       }
     };
-  }, [isCookingMode]);
+  }, [isOpen]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60).toString().padStart(2, "0");
