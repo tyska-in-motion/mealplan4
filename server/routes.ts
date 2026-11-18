@@ -529,7 +529,9 @@ export async function registerRoutes(
           fat: Math.round(stats.fat),
           sugar: Math.round(stats.sugar * 10) / 10,
           fiber: Math.round(stats.fiber * 10) / 10,
-          eatCount: stats.eatCount
+          eatCount: stats.eatCount,
+          ratingAverage: stats.ratingAverage,
+          ratingCount: stats.ratingCount,
         }
       };
     });
