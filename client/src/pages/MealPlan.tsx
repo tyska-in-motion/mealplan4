@@ -32,6 +32,7 @@ import { buildSharedIngredientsSummary, buildWholeSharedBatchIngredients } from 
 import { hasEditedMealIngredients } from "@/lib/meal-entry-ingredients";
 import { getAvailableVariants, type PortionVariant } from "@shared/portion-variants";
 import { getAdditionalMealIngredients, restoreRecipeIngredientsPreservingAdditions, splitBatchIngredientAmounts, type PortionsByPerson } from "@shared/portioning";
+import { prepareMealEntryIngredientEdits } from "@shared/meal-entry-editing";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -729,6 +730,12 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
         scalingType: ingredientForScaling.scalingType,
         scalingFormula: ingredientForScaling.scalingFormula,
         stepThresholds: ingredientForScaling.stepThresholds,
+        originalIngredientId: Number(ri.ingredientId),
+        originalDisplayedAmount: Math.round(displayedAmount),
+        originalBaseAmount: ingredientForScaling.baseAmount,
+        originalScalingType: ingredientForScaling.scalingType,
+        originalScalingFormula: ingredientForScaling.scalingFormula,
+        originalStepThresholds: ingredientForScaling.stepThresholds,
       };
     });
 
@@ -794,13 +801,11 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
   const saveIngredients = () => {
     if (!viewingMeal || !viewingRecipe) return;
 
-    const ingredientsData = editingMealIngredients
-      .filter(i => i.ingredientId > 0)
-      .map(i => ({
-        ingredientId: Number(i.ingredientId),
-        amount: Number(i.amount) || 0,
-        scalingType: i.scalingType || "LINEAR",
-      }));
+    const ingredientsData = prepareMealEntryIngredientEdits(
+      editingMealIngredients,
+      Number(viewingRecipe.servings) || 1,
+      Number(viewingMeal.servings) || 1,
+    );
 
     if (ingredientsData.length === 0) {
       toast({ title: "Błąd", description: "Dodaj przynajmniej jeden składnik.", variant: "destructive" });
