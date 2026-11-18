@@ -747,7 +747,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
   };
 
   const addIngredientToEdit = () => {
-    setEditingMealIngredients([...editingMealIngredients, { ingredientId: 0, amount: 100, ingredient: null }]);
+    setEditingMealIngredients([...editingMealIngredients, { ingredientId: 0, amount: 100, ingredient: null, isNewIngredient: true }]);
   };
 
   const addFrequentAddonToEdit = (addon: any) => {
@@ -777,6 +777,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
         amount: addonStep,
         ingredient: addon.ingredient || null,
         isFrequentAddon: true,
+        isNewIngredient: true,
         scalingType: addon?.scalingType || "LINEAR",
         scalingFormula: addon?.scalingFormula,
         stepThresholds: addon?.stepThresholds,
