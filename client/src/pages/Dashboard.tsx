@@ -78,7 +78,7 @@ export default function Dashboard() {
       toast({ title: "Nieprawidłowy procent", description: "Wpisz liczbę całkowitą od 1 do 100.", variant: "destructive" });
       return;
     }
-    if (percentage < 100 && !/^\\d{4}-\\d{2}-\\d{2}$/.test(leftoverDate)) {
+    if (percentage < 100 && !/^\d{4}-\d{2}-\d{2}$/.test(leftoverDate)) {
       toast({ title: "Wybierz datę", description: "Wskaż dzień, na który przenieść pozostałość.", variant: "destructive" });
       return;
     }
