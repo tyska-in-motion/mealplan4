@@ -4342,7 +4342,9 @@ function DaySection({ day, sectionId, recipes, userSettings, allAvailableIngredi
                                 </div>
                                 <p className="text-[10px] text-muted-foreground">
                                   {calculateEntrySummary(entry).calories} kcal • Cena: {calculateEntrySummary(entry).price.toFixed(2)} zł
-                                  {!entry.recipe && (entry.ingredients?.length ? ` • ${entry.ingredients[0]?.amount || 0} g` : " • Custom Item")}
+                                  {entry.originalDishPercentage != null && Number(entry.originalDishPercentage) < 100
+                                    ? ` • ${entry.originalDishPercentage}% dania`
+                                    : (!entry.recipe && (entry.ingredients?.length ? ` • ${entry.ingredients[0]?.amount || 0} g` : " • Custom Item"))}
                                 </p>
                               </div>
                             </div>
@@ -4383,7 +4385,7 @@ function DaySection({ day, sectionId, recipes, userSettings, allAvailableIngredi
                                   <MoreHorizontal className="h-3.5 w-3.5" />
                                   Akcje
                                 </button>
-                                {!entry.recipe && entry.ingredients?.length ? (
+                                {entry.originalDishPercentage == null && !entry.recipe && entry.ingredients?.length ? (
                                   <>
                                     <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => {
                                       const currentAmount = Number(entry.ingredients[0]?.amount) || 0;
