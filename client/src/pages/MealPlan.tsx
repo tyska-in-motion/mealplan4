@@ -3,7 +3,7 @@ import { Layout } from "@/components/Layout";
 import { format, addDays, subDays, eachDayOfInterval } from "date-fns";
 import { pl } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Plus, X, CheckCircle2, Circle, Minus, Eye, NotebookText, Carrot, Copy, Trash2, Download, GripVertical, MoreHorizontal, Pencil, Star } from "lucide-react";
-import { fetchMealEntryFull, useDayPlanSummary, useAddMealEntry, useDeleteMealEntry, useToggleEaten, useUpdateMealEntry, useCopyDayPlan } from "@/hooks/use-meal-plan";
+import { fetchMealEntryFull, useDayPlanSummary, useAddMealEntry, useDeleteMealEntry, useToggleEaten, useUpdateMealEntry, useCopyDayPlan, useConsumeMealPortion } from "@/hooks/use-meal-plan";
 import { fetchRecipeDetails, useRecipeSearchIndex } from "@/hooks/use-recipes";
 import { useAllIngredients } from "@/hooks/use-ingredients";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
@@ -3601,6 +3601,10 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
 function DaySection({ day, sectionId, recipes, userSettings, allAvailableIngredients = [], onAddMeal, onAddCustom, onAddIngredient, onDeleteMeal, onToggleEaten, onUpdateEntry, onDuplicateEntry, touchMoveEntry, setTouchMoveEntry, onCopyDay, onSaveIdealDay, onViewRecipe, onViewWholeRecipe, onViewPlannedRecipe }: any) {
   const [ratingEntry, setRatingEntry] = useState<any | null>(null);
   const [isSavingRating, setIsSavingRating] = useState(false);
+  const [eatenPercentage, setEatenPercentage] = useState("50");
+  const [leftoverDate, setLeftoverDate] = useState(format(addDays(day, 1), "yyyy-MM-dd"));
+  const [selectedRating, setSelectedRating] = useState<number | null>(null);
+  const { mutateAsync: consumeMealPortion } = useConsumeMealPortion();
   const { toast } = useToast();
   const [servingInputs, setServingInputs] = useState<Record<number, string>>({});
   const [variantOptionsByRecipe, setVariantOptionsByRecipe] = useState<Record<number, PortionVariant[]>>({});
@@ -3940,33 +3944,34 @@ function DaySection({ day, sectionId, recipes, userSettings, allAvailableIngredi
       void onToggleEaten({ id: entry.id, isEaten: false });
       return;
     }
-    if (entry.recipeId && entry.recipe) {
-      setRatingEntry(entry);
-      return;
-    }
-    void onToggleEaten({ id: entry.id, isEaten: true });
+    setEatenPercentage("50");
+    setLeftoverDate(format(addDays(day, 1), "yyyy-MM-dd"));
+    setSelectedRating(null);
+    setRatingEntry(entry);
   };
 
-  const completeEatenWithRating = async (rating: number | null) => {
+  const completeEatenWithRating = async () => {
     if (!ratingEntry || isSavingRating) return;
-    const entry = ratingEntry;
+    const percentage = Number(eatenPercentage);
+    if (!Number.isInteger(percentage) || percentage < 1 || percentage > 100) {
+      toast({ title: "Nieprawidłowy procent", description: "Wpisz liczbę całkowitą od 1 do 100.", variant: "destructive" });
+      return;
+    }
+    if (percentage < 100 && !/^\\d{4}-\\d{2}-\\d{2}$/.test(leftoverDate)) {
+      toast({ title: "Wybierz datę", description: "Wskaż dzień, na który przenieść pozostałość.", variant: "destructive" });
+      return;
+    }
     setIsSavingRating(true);
     try {
-      await onToggleEaten({ id: entry.id, isEaten: true });
-      if (rating !== null) {
-        const response = await fetchWithTimeout(`/api/meal-plan/entry/${entry.id}/rating`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ rating }),
-        });
-        if (!response.ok) {
-          const error = await response.json().catch(() => ({}));
-          throw new Error(error.message || "Nie udało się zapisać oceny.");
-        }
-      }
+      await consumeMealPortion({
+        id: Number(ratingEntry.id),
+        eatenPercentage: percentage,
+        ...(percentage < 100 ? { leftoverDate } : {}),
+        rating: selectedRating,
+      });
       setRatingEntry(null);
     } catch (error: any) {
-      toast({ title: "Błąd", description: error?.message || "Nie udało się oznaczyć posiłku jako zjedzony.", variant: "destructive" });
+      toast({ title: "Błąd", description: error?.message || "Nie udało się rozliczyć posiłku.", variant: "destructive" });
     } finally {
       setIsSavingRating(false);
     }
@@ -4595,40 +4600,31 @@ function DaySection({ day, sectionId, recipes, userSettings, allAvailableIngredi
       <Dialog open={!!ratingEntry} onOpenChange={(open) => { if (!open && !isSavingRating) setRatingEntry(null); }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Jak oceniasz ten posiłek?</DialogTitle>
-            <DialogDescription>
-              {ratingEntry?.recipe?.name || "Przepis"} · {ratingEntry?.person === "A" ? "Tysia" : "Mati"}
-              <br />
-              Ocena dotyczy tylko tego konkretnego posiłku. Możesz też pominąć ocenę.
-            </DialogDescription>
+            <DialogTitle>Ile posiłku zostało zjedzone?</DialogTitle>
+            <DialogDescription>{ratingEntry?.recipe?.name || ratingEntry?.customName || "Posiłek"} · {ratingEntry?.person === "A" ? "Tysia" : "Mati"}</DialogDescription>
           </DialogHeader>
-          <div className="flex justify-center gap-2 py-3">
-            {[1, 2, 3, 4, 5].map((rating) => (
-              <Button
-                key={rating}
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-11 w-11"
-                disabled={isSavingRating}
-                aria-label={`Oceń na ${rating} ${rating === 1 ? "gwiazdkę" : "gwiazdki"}`}
-                onClick={() => void completeEatenWithRating(rating)}
-              >
-                <Star className="h-7 w-7 fill-amber-400 text-amber-500" />
-                <span className="sr-only">{rating}</span>
-              </Button>
-            ))}
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <label htmlFor="meal-eaten-percentage" className="text-sm font-medium">Zjedzona część (%)</label>
+              <Input id="meal-eaten-percentage" type="number" min="1" max="100" step="1" inputMode="numeric" value={eatenPercentage} onChange={(event) => setEatenPercentage(event.target.value)} />
+            </div>
+            {Number(eatenPercentage) < 100 && (
+              <div className="space-y-1">
+                <label htmlFor="meal-leftover-date" className="text-sm font-medium">Przenieś pozostałość na dzień</label>
+                <Input id="meal-leftover-date" type="date" value={leftoverDate} onChange={(event) => setLeftoverDate(event.target.value)} />
+              </div>
+            )}
+            {ratingEntry?.recipeId && <div className="space-y-2">
+              <p className="text-sm font-medium">Ocena posiłku (opcjonalnie)</p>
+              <div className="flex gap-1">{[1,2,3,4,5].map((rating) => <Button key={rating} type="button" size="icon" variant="ghost" disabled={isSavingRating} aria-label={`Oceń na ${rating}`} onClick={() => setSelectedRating(rating)}><Star className={cn("h-6 w-6", selectedRating !== null && rating <= selectedRating ? "fill-amber-400 text-amber-500" : "text-muted-foreground")} /></Button>)}</div>
+            </div>}
           </div>
           <DialogFooter className="sm:justify-between">
-            <Button type="button" variant="outline" disabled={isSavingRating} onClick={() => void completeEatenWithRating(null)}>
-              Oznacz bez oceny
-            </Button>
-            <Button type="button" variant="ghost" disabled={isSavingRating} onClick={() => setRatingEntry(null)}>
-              Anuluj
-            </Button>
+            <Button type="button" variant="ghost" disabled={isSavingRating} onClick={() => setRatingEntry(null)}>Anuluj</Button>
+            <Button type="button" disabled={isSavingRating} onClick={() => void completeEatenWithRating()}>{isSavingRating ? "Zapisywanie..." : "Potwierdź"}</Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
+      </Dialog>>
 
       <Sheet open={!!mobileTransferEntry} onOpenChange={(open) => !open && setMobileTransferEntry(null)}>
         <SheetContent side="bottom" className="rounded-t-3xl pb-8 md:hidden">
