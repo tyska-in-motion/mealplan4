@@ -1970,7 +1970,7 @@ export default function Dashboard() {
                                     </Select>
                                   )}
                                 </div>
-                              ) : (
+                              ) : meal.originalDishPercentage != null ? null : (
                                 <span className="text-[9px] sm:text-[10px] font-bold text-muted-foreground bg-secondary/60 px-1.5 sm:px-2 py-0.5 rounded-full whitespace-nowrap">
                                   {personName[meal.person || "A"]}: x{Number(meal.servings) || 1}
                                 </span>
