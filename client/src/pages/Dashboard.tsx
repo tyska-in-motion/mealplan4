@@ -2138,7 +2138,7 @@ export default function Dashboard() {
             <Button type="button" disabled={isSavingMealRating} onClick={() => void completeEatenWithRating()}>{isSavingMealRating ? "Zapisywanie..." : "Potwierdź"}</Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>>
+      </Dialog>
 
       <Dialog open={isEditingIngredients} onOpenChange={setIsEditingIngredients}>
         <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col bg-white">
