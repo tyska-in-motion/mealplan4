@@ -66,6 +66,7 @@ export interface IStorage {
   getMealEntryById(id: number): Promise<MealEntryWithRecipe | undefined>;
   createMealEntry(entry: CreateMealEntryRequest & { createSharedBatch?: boolean; sharedBatchServings?: number }): Promise<MealEntry>;
   updateMealEntry(id: number, updates: Partial<MealEntry> & { servings?: number }): Promise<MealEntry>;
+  splitAndMarkMealEntry(input: { id: number; leftoverDate: string; mealType: string; person: string; customName: string; eatenIngredients: { ingredientId: number; amount: number }[]; leftoverIngredients: { ingredientId: number; amount: number }[]; eatenCustom: { calories: number | null; protein: number | null; carbs: number | null; fat: number | null; sugar: number | null; fiber: number | null }; leftoverCustom: { calories: number | null; protein: number | null; carbs: number | null; fat: number | null; sugar: number | null; fiber: number | null }; hasIngredients: boolean }): Promise<any>;
   deleteMealEntry(id: number): Promise<void>;
   getMealEntriesRange(startDate: string, endDate: string): Promise<MealEntryWithRecipe[]>;
   getStatsDayExclusions(startDate: string, endDate: string): Promise<{ date: string; person: "A" | "B"; reason: string; updatedAt: Date | null }[]>;
@@ -1255,6 +1256,88 @@ export class DatabaseStorage implements IStorage {
     }
     
     return newEntry;
+  }
+
+
+  async splitAndMarkMealEntry(input: {
+    id: number;
+    leftoverDate: string;
+    mealType: string;
+    person: string;
+    customName: string;
+    eatenIngredients: { ingredientId: number; amount: number }[];
+    leftoverIngredients: { ingredientId: number; amount: number }[];
+    eatenCustom: { calories: number | null; protein: number | null; carbs: number | null; fat: number | null; sugar: number | null; fiber: number | null };
+    leftoverCustom: { calories: number | null; protein: number | null; carbs: number | null; fat: number | null; sugar: number | null; fiber: number | null };
+    hasIngredients: boolean;
+  }): Promise<any> {
+    return db.transaction(async (tx) => {
+      const [updated] = await tx.update(mealEntries)
+        .set({
+          recipeId: null,
+          recipeSnapshot: null,
+          portionVariant: null,
+          cookedBatchId: null,
+          consumedWeightGrams: null,
+          customName: input.customName,
+          customCalories: input.eatenCustom.calories,
+          customProtein: input.eatenCustom.protein,
+          customCarbs: input.eatenCustom.carbs,
+          customFat: input.eatenCustom.fat,
+          customSugar: input.eatenCustom.sugar ?? 0,
+          customFiber: input.eatenCustom.fiber ?? 0,
+          servings: 1,
+          isEaten: true,
+          ingredientsModified: true,
+        })
+        .where(and(eq(mealEntries.id, input.id), eq(mealEntries.isEaten, false)))
+        .returning();
+      if (!updated) throw new Error("Ten posiłek został już rozliczony lub nie istnieje.");
+
+      await tx.delete(mealEntryIngredients).where(eq(mealEntryIngredients.mealEntryId, input.id));
+      if (input.hasIngredients && input.eatenIngredients.length) {
+        await tx.insert(mealEntryIngredients).values(input.eatenIngredients.map((row) => ({
+          mealEntryId: input.id,
+          ingredientId: row.ingredientId,
+          amount: row.amount,
+          scalingType: "FIXED" as const,
+        })));
+      }
+
+      let leftover: any = null;
+      if (input.leftoverDate) {
+        const [created] = await tx.insert(mealEntries).values({
+          date: input.leftoverDate,
+          recipeId: null,
+          recipeSnapshot: null,
+          portionVariant: null,
+          cookedBatchId: null,
+          consumedWeightGrams: null,
+          customName: input.customName,
+          customCalories: input.leftoverCustom.calories,
+          customProtein: input.leftoverCustom.protein,
+          customCarbs: input.leftoverCustom.carbs,
+          customFat: input.leftoverCustom.fat,
+          customSugar: input.leftoverCustom.sugar ?? 0,
+          customFiber: input.leftoverCustom.fiber ?? 0,
+          mealType: input.mealType,
+          person: input.person,
+          servings: 1,
+          isEaten: false,
+          ingredientsModified: true,
+        }).returning();
+        leftover = created;
+        if (input.hasIngredients && input.leftoverIngredients.length) {
+          await tx.insert(mealEntryIngredients).values(input.leftoverIngredients.map((row) => ({
+            mealEntryId: created.id,
+            ingredientId: row.ingredientId,
+            amount: row.amount,
+            scalingType: "FIXED" as const,
+          })));
+        }
+      }
+      return { entry: updated, leftover };
+    });
   }
 
   async updateMealEntry(id: number, updates: Partial<MealEntry>): Promise<MealEntry> {
