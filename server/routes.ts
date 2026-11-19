@@ -1330,15 +1330,19 @@ export async function registerRoutes(
         hasIngredients,
       });
       if (input.rating != null && entry.recipeId) {
-        await storage.appendAppStateItem("meal-entry-ratings", {
-          id: `${id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          mealEntryId: id,
-          recipeId: Number(entry.recipeId),
-          person: entry.person === "B" ? "B" : "A",
-          date: String(entry.date).slice(0, 10),
-          rating: input.rating,
-          createdAt: new Date().toISOString(),
-        });
+        try {
+          await storage.appendAppStateItem("meal-entry-ratings", {
+            id: `${id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            mealEntryId: id,
+            recipeId: Number(entry.recipeId),
+            person: entry.person === "B" ? "B" : "A",
+            date: String(entry.date).slice(0, 10),
+            rating: input.rating,
+            createdAt: new Date().toISOString(),
+          });
+        } catch (ratingError) {
+          console.error("Meal was split, but its optional rating could not be saved:", ratingError);
+        }
       }
       res.json({ success: true, ...result });
     } catch (error) {
