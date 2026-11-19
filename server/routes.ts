@@ -1314,7 +1314,7 @@ export async function registerRoutes(
       }
       const scaleCustom = (fraction: number) => Object.fromEntries(customKeys.map((key) => [
         key,
-        sourceCustom[key] == null ? null : Math.round(Number(sourceCustom[key]) * fraction * 100) / 100,
+        sourceCustom[key] == null ? null : key === "calories" ? Math.round(Number(sourceCustom[key]) * fraction) : Math.round(Number(sourceCustom[key]) * fraction * 100) / 100,
       ])) as any;
 
       const result = await storage.splitAndMarkMealEntry({
