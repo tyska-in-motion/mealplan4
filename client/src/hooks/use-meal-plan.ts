@@ -68,6 +68,27 @@ export function useAddMealEntry() {
   });
 }
 
+export function useConsumeMealPortion() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, eatenPercentage, leftoverDate, rating }: { id: number; eatenPercentage: number; leftoverDate?: string; rating?: number | null }) => {
+      const res = await fetchWithTimeout(`/api/meal-plan/entry/${id}/consume`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eatenPercentage, leftoverDate, rating }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Nie udało się rozliczyć posiłku.");
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.mealPlan.getDay.path] });
+      queryClient.invalidateQueries({ queryKey: [api.mealPlan.getDaySummary.path] });
+      queryClient.invalidateQueries({ queryKey: [api.mealPlan.getShoppingList.path] });
+    },
+  });
+}
+
 export function useToggleEaten() {
   const queryClient = useQueryClient();
   return useMutation({
