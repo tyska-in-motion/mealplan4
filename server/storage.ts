@@ -1557,6 +1557,7 @@ export class DatabaseStorage implements IStorage {
           mealType: sourceEntry.mealType,
           person: sourceEntry.person,
           servings: Number(sourceEntry.servings) || 1,
+          originalDishPercentage: sourceEntry.originalDishPercentage ?? null,
           isEaten: sourceEntry.isEaten ?? false,
         }).returning();
 
