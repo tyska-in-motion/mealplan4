@@ -2715,6 +2715,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
         mealEntryIngredients={viewingMeal?.isWholeRecipeView
           ? viewingMeal?.ingredients
           : isSharedRecipeView && viewingMeal?.sharedParticipantEntries ? undefined : viewingMeal?.ingredients}
+        originalDishPercentage={viewingMeal?.originalDishPercentage ?? null}
         frequentAddonIds={viewingRecipe?.frequentAddons?.map((addon: any) => addon.ingredientId) || []}
         onEditIngredients={viewingMeal && !(viewingMeal?.isWholeRecipeView && isIndividualVariantRecipe(viewingRecipe)) ? (isSharedRecipeView ? startEditingSharedIngredients : startEditing) : undefined}
         allowIngredientEditing={!!viewingMeal && !(viewingMeal?.isWholeRecipeView && isIndividualVariantRecipe(viewingRecipe)) && !(isSharedRecipeView && viewingMeal?.id && getEditedSharedParticipantEntries(viewingMeal).length > 0)}
