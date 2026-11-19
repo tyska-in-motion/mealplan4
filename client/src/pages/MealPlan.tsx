@@ -4624,7 +4624,7 @@ function DaySection({ day, sectionId, recipes, userSettings, allAvailableIngredi
             <Button type="button" disabled={isSavingRating} onClick={() => void completeEatenWithRating()}>{isSavingRating ? "Zapisywanie..." : "Potwierdź"}</Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>>
+      </Dialog>
 
       <Sheet open={!!mobileTransferEntry} onOpenChange={(open) => !open && setMobileTransferEntry(null)}>
         <SheetContent side="bottom" className="rounded-t-3xl pb-8 md:hidden">
