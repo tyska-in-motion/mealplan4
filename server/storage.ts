@@ -1270,6 +1270,8 @@ export class DatabaseStorage implements IStorage {
     eatenCustom: { calories: number | null; protein: number | null; carbs: number | null; fat: number | null; sugar: number | null; fiber: number | null };
     leftoverCustom: { calories: number | null; protein: number | null; carbs: number | null; fat: number | null; sugar: number | null; fiber: number | null };
     hasIngredients: boolean;
+    eatenOriginalDishPercentage: number | null;
+    leftoverOriginalDishPercentage: number | null;
   }): Promise<any> {
     return db.transaction(async (tx) => {
       const [updated] = await tx.update(mealEntries)
@@ -1289,6 +1291,7 @@ export class DatabaseStorage implements IStorage {
           servings: 1,
           isEaten: true,
           ingredientsModified: true,
+          originalDishPercentage: input.eatenOriginalDishPercentage,
         })
         .where(and(eq(mealEntries.id, input.id), eq(mealEntries.isEaten, false)))
         .returning();
@@ -1325,6 +1328,7 @@ export class DatabaseStorage implements IStorage {
           servings: 1,
           isEaten: false,
           ingredientsModified: true,
+          originalDishPercentage: input.leftoverOriginalDishPercentage,
         }).returning();
         leftover = created;
         if (input.hasIngredients && input.leftoverIngredients.length) {
