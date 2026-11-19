@@ -1265,6 +1265,79 @@ export async function registerRoutes(
     }
   });
 
+
+  app.post("/api/meal-plan/entry/:id/consume", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const input = z.object({
+        eatenPercentage: z.number().int().min(1).max(100),
+        leftoverDate: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/).optional(),
+      }).parse(req.body || {});
+      const entry: any = await storage.getMealEntryById(id);
+      if (!entry) return res.status(404).json({ message: "Nie znaleziono posiłku." });
+      if (entry.isEaten) return res.status(409).json({ message: "Ten posiłek jest już oznaczony jako zjedzony." });
+      if (input.eatenPercentage < 100 && !input.leftoverDate) {
+        return res.status(400).json({ message: "Wybierz dzień, na który przenieść pozostałość." });
+      }
+
+      const eatenFraction = input.eatenPercentage / 100;
+      const leftoverFraction = 1 - eatenFraction;
+      const sourceRows = getEntryIngredientsForSummary(entry);
+      const hasIngredients = sourceRows.length > 0;
+      const entryServings = Number(entry.servings) || 1;
+      const recipeServings = Number(entry.recipe?.servings) || 1;
+      const batchWeight = Number(entry.cookedBatch?.finishedWeightGrams) || 0;
+      const consumedWeight = Number(entry.consumedWeightGrams) || 0;
+      const expectedPortionWeight = batchWeight > 0 && Number(entry.cookedBatch?.totalServings) > 0
+        ? batchWeight * entryServings / Number(entry.cookedBatch.totalServings)
+        : 0;
+      const weightMultiplier = consumedWeight > 0 && expectedPortionWeight > 0
+        ? consumedWeight / expectedPortionWeight
+        : 1;
+
+      const actualIngredients = sourceRows.map((row: any, index: number) => {
+        const resolved = resolveIngredientForScaling(entry, row);
+        const amount = calculateScaledAmount(resolved, entryServings, recipeServings) * weightMultiplier;
+        return { ingredientId: Number(row.ingredientId), amount: Math.max(0, Number(amount) || 0) };
+      }).filter((row: any) => Number.isInteger(row.ingredientId) && row.ingredientId > 0);
+      const scaleRows = (fraction: number) => actualIngredients.map((row: any) => ({
+        ingredientId: row.ingredientId,
+        amount: Math.round(row.amount * fraction * 1000) / 1000,
+      })).filter((row: any) => row.amount > 0);
+
+      const customKeys = ["calories", "protein", "carbs", "fat", "sugar", "fiber"] as const;
+      const sourceCustom: Record<string, number | null> = {};
+      for (const key of customKeys) {
+        const value = (entry as any)[`custom${key[0].toUpperCase()}${key.slice(1)}`];
+        sourceCustom[key] = value == null ? null : Number(value) * entryServings;
+      }
+      const scaleCustom = (fraction: number) => Object.fromEntries(customKeys.map((key) => [
+        key,
+        sourceCustom[key] == null ? null : Math.round(Number(sourceCustom[key]) * fraction * 100) / 100,
+      ])) as any;
+
+      const result = await storage.splitAndMarkMealEntry({
+        id,
+        leftoverDate: input.eatenPercentage < 100 ? input.leftoverDate! : "",
+        mealType: entry.mealType,
+        person: entry.person,
+        customName: entry.recipe?.name || entry.customName || "Posiłek",
+        eatenIngredients: scaleRows(eatenFraction),
+        leftoverIngredients: scaleRows(leftoverFraction),
+        eatenCustom: hasIngredients ? { calories: null, protein: null, carbs: null, fat: null, sugar: 0, fiber: 0 } : scaleCustom(eatenFraction),
+        leftoverCustom: hasIngredients ? { calories: null, protein: null, carbs: null, fat: null, sugar: 0, fiber: 0 } : scaleCustom(leftoverFraction),
+        hasIngredients,
+      });
+      res.json({ success: true, ...result });
+    } catch (error) {
+      if (error instanceof z.ZodError) return res.status(400).json({ message: "Podaj całkowity procent od 1 do 100." });
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("już rozliczony")) return res.status(409).json({ message });
+      console.error("Error splitting eaten meal:", error);
+      res.status(500).json({ message: "Nie udało się rozliczyć posiłku." });
+    }
+  });
+
   app.patch("/api/meal-plan/entry/:id", async (req, res) => {
     try {
       const id = Number(req.params.id);
