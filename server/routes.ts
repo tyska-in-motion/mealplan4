@@ -1272,7 +1272,7 @@ export async function registerRoutes(
       const input = z.object({
         eatenPercentage: z.number().int().min(1).max(100),
         rating: z.number().int().min(1).max(5).nullable().optional(),
-        leftoverDate: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/).optional(),
+        leftoverDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
       }).parse(req.body || {});
       const entry: any = await storage.getMealEntryById(id);
       if (!entry) return res.status(404).json({ message: "Nie znaleziono posiłku." });
