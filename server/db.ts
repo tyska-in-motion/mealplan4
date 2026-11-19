@@ -174,6 +174,10 @@ export async function ensureDbCompat() {
   await pool.query(`ALTER TABLE meal_entries
     ADD COLUMN IF NOT EXISTS portion_variant text,
     ADD COLUMN IF NOT EXISTS ingredients_modified boolean NOT NULL DEFAULT false`);
+  // The partial-meal percentage is read by Dashboard and Meal Plan queries.
+  // Add it during runtime compatibility checks so existing databases are upgraded before routes are registered.
+  await pool.query(`ALTER TABLE meal_entries
+    ADD COLUMN IF NOT EXISTS original_dish_percentage integer`);
   // Individual variants can contain fractional ingredient quantities.
   await pool.query(`ALTER TABLE meal_entry_ingredients ALTER COLUMN amount TYPE real USING amount::real`);
   // Backward-compatible self-healing for ingredients migration
