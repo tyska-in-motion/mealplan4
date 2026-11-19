@@ -1271,6 +1271,7 @@ export async function registerRoutes(
       const id = Number(req.params.id);
       const input = z.object({
         eatenPercentage: z.number().int().min(1).max(100),
+        rating: z.number().int().min(1).max(5).nullable().optional(),
         leftoverDate: z.string().regex(/^\\d{4}-\\d{2}-\\d{2}$/).optional(),
       }).parse(req.body || {});
       const entry: any = await storage.getMealEntryById(id);
@@ -1328,6 +1329,17 @@ export async function registerRoutes(
         leftoverCustom: hasIngredients ? { calories: null, protein: null, carbs: null, fat: null, sugar: 0, fiber: 0 } : scaleCustom(leftoverFraction),
         hasIngredients,
       });
+      if (input.rating != null && entry.recipeId) {
+        await storage.appendAppStateItem("meal-entry-ratings", {
+          id: `${id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          mealEntryId: id,
+          recipeId: Number(entry.recipeId),
+          person: entry.person === "B" ? "B" : "A",
+          date: String(entry.date).slice(0, 10),
+          rating: input.rating,
+          createdAt: new Date().toISOString(),
+        });
+      }
       res.json({ success: true, ...result });
     } catch (error) {
       if (error instanceof z.ZodError) return res.status(400).json({ message: "Podaj całkowity procent od 1 do 100." });
