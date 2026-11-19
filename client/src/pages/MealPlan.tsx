@@ -3601,7 +3601,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
 function DaySection({ day, sectionId, recipes, userSettings, allAvailableIngredients = [], onAddMeal, onAddCustom, onAddIngredient, onDeleteMeal, onToggleEaten, onUpdateEntry, onDuplicateEntry, touchMoveEntry, setTouchMoveEntry, onCopyDay, onSaveIdealDay, onViewRecipe, onViewWholeRecipe, onViewPlannedRecipe }: any) {
   const [ratingEntry, setRatingEntry] = useState<any | null>(null);
   const [isSavingRating, setIsSavingRating] = useState(false);
-  const [eatenPercentage, setEatenPercentage] = useState("50");
+  const [eatenPercentage, setEatenPercentage] = useState("100");
   const [leftoverDate, setLeftoverDate] = useState(format(addDays(day, 1), "yyyy-MM-dd"));
   const [selectedRating, setSelectedRating] = useState<number | null>(null);
   const { mutateAsync: consumeMealPortion } = useConsumeMealPortion();
@@ -3944,7 +3944,7 @@ function DaySection({ day, sectionId, recipes, userSettings, allAvailableIngredi
       void onToggleEaten({ id: entry.id, isEaten: false });
       return;
     }
-    setEatenPercentage("50");
+    setEatenPercentage("100");
     setLeftoverDate(format(addDays(day, 1), "yyyy-MM-dd"));
     setSelectedRating(null);
     setRatingEntry(entry);
