@@ -983,17 +983,17 @@ export async function registerRoutes(
 
     entries.forEach(entry => {
       // Use entry-specific ingredients if they exist, inaczej fallback do domyślnych przepisu
-      const ingredientsToUse = entry.ingredients && entry.ingredients.length > 0 
-        ? entry.ingredients 
+      const ingredientsToUse = entry.ingredients && entry.ingredients.length > 0
+        ? entry.ingredients
         : (entry.recipe?.ingredients || []);
+      const usableIngredients = ingredientsToUse.filter((ri: any) => ri?.ingredient);
 
       const entryServings = Number(entry.servings) || 1;
       const recipeServings = Number(entry.recipe?.servings || 1);
 
-      if (ingredientsToUse.length > 0) {
+      if (usableIngredients.length > 0) {
         const occurrenceTracker = new Map<number, number>();
-        ingredientsToUse.forEach(ri => {
-          if (!ri.ingredient) return;
+        usableIngredients.forEach(ri => {
           const scaledAmount = calculateScaledAmount(resolveIngredientForScaling(entry, ri, occurrenceTracker), entryServings, recipeServings);
           const nutritionAmount = calculateNutritionAmount(scaledAmount, ri.ingredient);
           const purchaseAmount = calculatePurchaseAmount(scaledAmount, ri.ingredient);
@@ -1300,12 +1300,40 @@ export async function registerRoutes(
       const actualIngredients = sourceRows.map((row: any) => {
         const resolved = resolveIngredientForScaling(entry, row, occurrenceTracker);
         const amount = calculateScaledAmount(resolved, entryServings, recipeServings) * weightMultiplier;
-        return { ingredientId: Number(row.ingredientId), amount: Math.max(0, Number(amount) || 0) };
+        return {
+          ingredientId: Number(row.ingredientId),
+          amount: Math.max(0, Number(amount) || 0),
+          ingredient: row.ingredient,
+        };
       }).filter((row: any) => Number.isInteger(row.ingredientId) && row.ingredientId > 0);
       const scaleRows = (fraction: number) => actualIngredients.map((row: any) => ({
         ingredientId: row.ingredientId,
         amount: Math.round(row.amount * fraction * 1000) / 1000,
       })).filter((row: any) => row.amount > 0);
+
+      // Persist nutrition as a fallback as well as the fixed ingredient rows. Some
+      // legacy/client read paths can temporarily receive ingredient rows without
+      // their joined ingredient relation; without this fallback those meals show 0.
+      const ingredientNutrition = actualIngredients.reduce((totals: any, row: any) => {
+        if (!row.ingredient) return totals;
+        const edibleAmount = calculateNutritionAmount(row.amount, row.ingredient);
+        const factor = edibleAmount / 100;
+        totals.calories += Number(row.ingredient.calories || 0) * factor;
+        totals.protein += Number(row.ingredient.protein || 0) * factor;
+        totals.carbs += Number(row.ingredient.carbs || 0) * factor;
+        totals.fat += Number(row.ingredient.fat || 0) * factor;
+        totals.sugar += Number(row.ingredient.sugar || 0) * factor;
+        totals.fiber += Number(row.ingredient.fiber || 0) * factor;
+        return totals;
+      }, { calories: 0, protein: 0, carbs: 0, fat: 0, sugar: 0, fiber: 0 });
+      const scaleIngredientNutrition = (fraction: number) => ({
+        calories: Math.round(ingredientNutrition.calories * fraction),
+        protein: Math.round(ingredientNutrition.protein * fraction * 100) / 100,
+        carbs: Math.round(ingredientNutrition.carbs * fraction * 100) / 100,
+        fat: Math.round(ingredientNutrition.fat * fraction * 100) / 100,
+        sugar: Math.round(ingredientNutrition.sugar * fraction * 100) / 100,
+        fiber: Math.round(ingredientNutrition.fiber * fraction * 100) / 100,
+      });
 
       const customKeys = ["calories", "protein", "carbs", "fat", "sugar", "fiber"] as const;
       const sourceCustom: Record<string, number | null> = {};
@@ -1326,8 +1354,8 @@ export async function registerRoutes(
         customName: entry.recipe?.name || entry.customName || "Posiłek",
         eatenIngredients: scaleRows(eatenFraction),
         leftoverIngredients: scaleRows(leftoverFraction),
-        eatenCustom: hasIngredients ? { calories: null, protein: null, carbs: null, fat: null, sugar: 0, fiber: 0 } : scaleCustom(eatenFraction),
-        leftoverCustom: hasIngredients ? { calories: null, protein: null, carbs: null, fat: null, sugar: 0, fiber: 0 } : scaleCustom(leftoverFraction),
+        eatenCustom: hasIngredients ? scaleIngredientNutrition(eatenFraction) : scaleCustom(eatenFraction),
+        leftoverCustom: hasIngredients ? scaleIngredientNutrition(leftoverFraction) : scaleCustom(leftoverFraction),
         hasIngredients,
       });
       if (input.rating != null && entry.recipeId) {
