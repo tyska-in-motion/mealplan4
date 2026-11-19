@@ -4334,7 +4334,7 @@ function DaySection({ day, sectionId, recipes, userSettings, allAvailableIngredi
                                       <NotebookText className="h-3.5 w-3.5" />
                                     </button>
                                   )}
-                                  {!entry.recipe && (
+                                  {!entry.recipe && entry.originalDishPercentage == null && (
                                     <button onClick={() => openCustomEditDialog(entry)} className="shrink-0 rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-primary" title="Edytuj własny posiłek" aria-label="Edytuj własny posiłek">
                                       <Pencil className="h-3.5 w-3.5" />
                                     </button>
@@ -4402,7 +4402,7 @@ function DaySection({ day, sectionId, recipes, userSettings, allAvailableIngredi
                                       <Plus className="h-3 w-3" />
                                     </Button>
                                   </>
-                                ) : (isIndividualVariantRecipe(entry.recipe) || (variantOptionsByRecipe[Number(entry.recipe?.id)]?.length || 0) > 0) ? (
+                                ) : entry.originalDishPercentage != null ? null : (isIndividualVariantRecipe(entry.recipe) || (variantOptionsByRecipe[Number(entry.recipe?.id)]?.length || 0) > 0) ? (
                                   <div className="flex min-w-0 items-center gap-1">
                                     <Button size="icon" variant="ghost" className="h-6 w-6 rounded-full" aria-label="Poprzedni wariant" onClick={async () => {
                                         const recipeId = Number(entry.recipe?.id);
