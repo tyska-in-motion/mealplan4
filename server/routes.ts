@@ -456,7 +456,7 @@ export async function registerRoutes(
       }
     }
     const ratingTotalsByRecipe = new Map<number, { sum: number; count: number }>();
-    for (const item of latestRatingByEntry.values()) {
+    for (const item of Array.from(latestRatingByEntry.values())) {
       const recipeId = Number(item.recipeId);
       const total = ratingTotalsByRecipe.get(recipeId) || { sum: 0, count: 0 };
       total.sum += Number(item.rating);
@@ -1210,7 +1210,7 @@ export async function registerRoutes(
     }
 
     const totals = new Map<number, { sum: number; count: number }>();
-    for (const item of latestByEntry.values()) {
+    for (const item of Array.from(latestByEntry.values())) {
       const recipeId = Number(item.recipeId);
       const currentTotal = totals.get(recipeId) || { sum: 0, count: 0 };
       currentTotal.sum += Number(item.rating);
@@ -1219,7 +1219,7 @@ export async function registerRoutes(
     }
 
     const result: Record<number, { average: number; count: number }> = {};
-    for (const [recipeId, total] of totals.entries()) {
+    for (const [recipeId, total] of Array.from(totals.entries())) {
       result[recipeId] = {
         average: Math.round((total.sum / total.count) * 10) / 10,
         count: total.count,
