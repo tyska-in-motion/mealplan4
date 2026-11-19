@@ -1975,7 +1975,10 @@ export default function Dashboard() {
                                   {personName[meal.person || "A"]}: x{Number(meal.servings) || 1}
                                 </span>
                               )}
-                              {!meal.recipe && meal.ingredients?.length ? (
+                              {meal.originalDishPercentage != null && Number(meal.originalDishPercentage) < 100 && (
+                                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-bold text-primary">{meal.originalDishPercentage}% dania</span>
+                              )}
+                              {meal.originalDishPercentage != null ? null : !meal.recipe && meal.ingredients?.length ? (
                                 <div className="flex items-center gap-0.5 rounded-md border border-border/70 bg-muted/40 px-0.5 py-0.5">
                                   <button
                                     className="h-5 w-5 rounded text-xs hover:bg-white shrink-0"
