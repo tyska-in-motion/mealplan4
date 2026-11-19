@@ -56,6 +56,7 @@ interface RecipeViewProps {
   onPlannedServingsChange?: (servings: number) => void;
   showFooter?: boolean;
   mealEntryIngredients?: any[];
+  originalDishPercentage?: number | null;
   frequentAddonIds?: number[];
   allowIngredientEditing?: boolean;
   usePrecalculatedAmounts?: boolean;
@@ -162,6 +163,7 @@ export function RecipeView({
   onPlannedServingsChange,
   showFooter = true,
   mealEntryIngredients,
+  originalDishPercentage = null,
   frequentAddonIds = [],
   allowIngredientEditing = true,
   usePrecalculatedAmounts = false,
@@ -1095,7 +1097,10 @@ ${imageSource ? '<div class="hero"><img id="recipe-photo" src="' + escapeRecipeC
           <div className={compact ? "grid gap-3 md:grid-cols-2 md:gap-4" : "grid md:grid-cols-2 gap-8"}>
             <div>
               <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                <h3 className={compact ? "text-base font-bold" : "text-lg font-bold"}>Składniki</h3>
+                <div>
+                  <h3 className={compact ? "text-base font-bold" : "text-lg font-bold"}>Składniki</h3>
+                  {originalDishPercentage != null && originalDishPercentage < 100 && <p className="mt-1 text-xs font-semibold text-primary">{originalDishPercentage}% pierwotnego dania</p>}
+                </div>
                 <div className="flex w-full flex-col items-stretch gap-2 md:w-full md:flex-row md:flex-wrap md:items-center">
                   <Button variant="outline" size="icon" onClick={exportRecipeAsPng} disabled={isExportingPng} title="Pobierz kartę PNG" aria-label="Pobierz kartę PNG" className="h-8 w-8 shrink-0">
                     <Download className="h-4 w-4" />
@@ -1140,9 +1145,7 @@ ${imageSource ? '<div class="hero"><img id="recipe-photo" src="' + escapeRecipeC
                           </span>
                         )}
                       </span>
-                      <span className="text-right font-medium whitespace-nowrap pl-2">
-                        {getIngredientAmountLabel(ri, isFrequentAddon, scalingIngredient)}
-                      </span>
+                      {originalDishPercentage == null && <span className="text-right font-medium whitespace-nowrap pl-2">{getIngredientAmountLabel(ri, isFrequentAddon, scalingIngredient)}</span>}
                     </div>
                     {(() => {
                       const sharedInfo = getSharedAddonPersonInfo(ri);
@@ -1153,7 +1156,7 @@ ${imageSource ? '<div class="hero"><img id="recipe-photo" src="' + escapeRecipeC
                         </span>
                       );
                     })()}
-                    {Number(ri.ingredient?.unitWeight || 0) > 0 && (
+                    {originalDishPercentage == null && Number(ri.ingredient?.unitWeight || 0) > 0 && (
                       <span className="text-[10px] text-muted-foreground italic">
                         ({ri.ingredient.unitDescription ? `${ri.ingredient.unitDescription} - ` : ""}1 sztuka to ok. {ri.ingredient.unitWeight}g)
                       </span>

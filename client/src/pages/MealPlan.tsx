@@ -2715,6 +2715,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
         mealEntryIngredients={viewingMeal?.isWholeRecipeView
           ? viewingMeal?.ingredients
           : isSharedRecipeView && viewingMeal?.sharedParticipantEntries ? undefined : viewingMeal?.ingredients}
+        originalDishPercentage={viewingMeal?.originalDishPercentage ?? null}
         frequentAddonIds={viewingRecipe?.frequentAddons?.map((addon: any) => addon.ingredientId) || []}
         onEditIngredients={viewingMeal && !(viewingMeal?.isWholeRecipeView && isIndividualVariantRecipe(viewingRecipe)) ? (isSharedRecipeView ? startEditingSharedIngredients : startEditing) : undefined}
         allowIngredientEditing={!!viewingMeal && !(viewingMeal?.isWholeRecipeView && isIndividualVariantRecipe(viewingRecipe)) && !(isSharedRecipeView && viewingMeal?.id && getEditedSharedParticipantEntries(viewingMeal).length > 0)}
@@ -4334,7 +4335,7 @@ function DaySection({ day, sectionId, recipes, userSettings, allAvailableIngredi
                                       <NotebookText className="h-3.5 w-3.5" />
                                     </button>
                                   )}
-                                  {!entry.recipe && (
+                                  {!entry.recipe && entry.originalDishPercentage == null && (
                                     <button onClick={() => openCustomEditDialog(entry)} className="shrink-0 rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-primary" title="Edytuj własny posiłek" aria-label="Edytuj własny posiłek">
                                       <Pencil className="h-3.5 w-3.5" />
                                     </button>
@@ -4342,7 +4343,9 @@ function DaySection({ day, sectionId, recipes, userSettings, allAvailableIngredi
                                 </div>
                                 <p className="text-[10px] text-muted-foreground">
                                   {calculateEntrySummary(entry).calories} kcal • Cena: {calculateEntrySummary(entry).price.toFixed(2)} zł
-                                  {!entry.recipe && (entry.ingredients?.length ? ` • ${entry.ingredients[0]?.amount || 0} g` : " • Custom Item")}
+                                  {entry.originalDishPercentage != null && Number(entry.originalDishPercentage) < 100
+                                    ? ` • ${entry.originalDishPercentage}% dania`
+                                    : (!entry.recipe && (entry.ingredients?.length ? ` • ${entry.ingredients[0]?.amount || 0} g` : " • Custom Item"))}
                                 </p>
                               </div>
                             </div>
@@ -4383,7 +4386,7 @@ function DaySection({ day, sectionId, recipes, userSettings, allAvailableIngredi
                                   <MoreHorizontal className="h-3.5 w-3.5" />
                                   Akcje
                                 </button>
-                                {!entry.recipe && entry.ingredients?.length ? (
+                                {entry.originalDishPercentage == null && !entry.recipe && entry.ingredients?.length ? (
                                   <>
                                     <Button size="icon" variant="ghost" className="h-5 w-5" onClick={() => {
                                       const currentAmount = Number(entry.ingredients[0]?.amount) || 0;
@@ -4400,7 +4403,7 @@ function DaySection({ day, sectionId, recipes, userSettings, allAvailableIngredi
                                       <Plus className="h-3 w-3" />
                                     </Button>
                                   </>
-                                ) : (isIndividualVariantRecipe(entry.recipe) || (variantOptionsByRecipe[Number(entry.recipe?.id)]?.length || 0) > 0) ? (
+                                ) : entry.originalDishPercentage != null ? null : (isIndividualVariantRecipe(entry.recipe) || (variantOptionsByRecipe[Number(entry.recipe?.id)]?.length || 0) > 0) ? (
                                   <div className="flex min-w-0 items-center gap-1">
                                     <Button size="icon" variant="ghost" className="h-6 w-6 rounded-full" aria-label="Poprzedni wariant" onClick={async () => {
                                         const recipeId = Number(entry.recipe?.id);

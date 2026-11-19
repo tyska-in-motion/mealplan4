@@ -1905,7 +1905,9 @@ export default function Dashboard() {
                               {meal.recipe?.name || meal.customName}
                             </p>
                             <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-1.5">
-                              {meal.recipe ? (
+                              {meal.originalDishPercentage != null && Number(meal.originalDishPercentage) < 100 ? (
+                                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-bold text-primary">{personName[meal.person || "A"]}: {meal.originalDishPercentage}% dania</span>
+                              ) : meal.recipe ? (
                                 <div className="flex flex-wrap items-center gap-1">
                                   <span className="text-[9px] sm:text-[10px] font-bold text-primary bg-primary/10 px-1.5 sm:px-2 py-0.5 rounded-full whitespace-nowrap">
                                     {personName[meal.person || "A"]}: {(meal.portionVariant || meal.recipe?.portioningMode === "individual" || (variantOptionsByRecipe[Number(meal.recipe?.id)]?.length || 0) > 0) ? `wariant ${meal.portionVariant || (variantOptionsByRecipe[Number(meal.recipe?.id)] || [])[0] || "A"}` : `${(Number(meal.servings) || 1)}/${(Number(meal.recipe?.servings) || 1)} porcji`}
@@ -1970,12 +1972,12 @@ export default function Dashboard() {
                                     </Select>
                                   )}
                                 </div>
-                              ) : (
+                              ) : meal.originalDishPercentage != null ? null : (
                                 <span className="text-[9px] sm:text-[10px] font-bold text-muted-foreground bg-secondary/60 px-1.5 sm:px-2 py-0.5 rounded-full whitespace-nowrap">
                                   {personName[meal.person || "A"]}: x{Number(meal.servings) || 1}
                                 </span>
                               )}
-                              {!meal.recipe && meal.ingredients?.length ? (
+                              {meal.originalDishPercentage != null ? null : !meal.recipe && meal.ingredients?.length ? (
                                 <div className="flex items-center gap-0.5 rounded-md border border-border/70 bg-muted/40 px-0.5 py-0.5">
                                   <button
                                     className="h-5 w-5 rounded text-xs hover:bg-white shrink-0"
