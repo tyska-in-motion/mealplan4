@@ -214,6 +214,7 @@ export const mealEntries = pgTable("meal_entries", {
   recipeSnapshot: jsonb("recipe_snapshot").$type<RecipeSnapshot>(),
   portionVariant: text("portion_variant"),
   ingredientsModified: boolean("ingredients_modified").notNull().default(false),
+  originalDishPercentage: integer("original_dish_percentage"), // Portion of the original dish retained after a partial-consumption split
 
   isEaten: boolean("is_eaten").default(false),
   createdAt: timestamp("created_at").defaultNow(),
