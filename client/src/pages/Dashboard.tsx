@@ -1,4 +1,4 @@
-import { fetchMealEntryFull, useDayPlanSummary, useUpdateMealEntry, useToggleEaten, useAddMealEntry, useDeleteMealEntry } from "@/hooks/use-meal-plan";
+import { fetchMealEntryFull, useDayPlanSummary, useUpdateMealEntry, useToggleEaten, useAddMealEntry, useDeleteMealEntry, useConsumeMealPortion } from "@/hooks/use-meal-plan";
 import { useAllIngredients } from "@/hooks/use-ingredients";
 import { fetchRecipeDetails, useRecipeSearchIndex } from "@/hooks/use-recipes";
 import { useToast } from "@/hooks/use-toast";
@@ -50,6 +50,10 @@ export default function Dashboard() {
   const { mutateAsync: toggleEatenAsync } = useToggleEaten();
   const [ratingMeal, setRatingMeal] = useState<any | null>(null);
   const [isSavingMealRating, setIsSavingMealRating] = useState(false);
+  const [eatenPercentage, setEatenPercentage] = useState("50");
+  const [leftoverDate, setLeftoverDate] = useState(format(addDays(date, 1), "yyyy-MM-dd"));
+  const [selectedMealRating, setSelectedMealRating] = useState<number | null>(null);
+  const { mutateAsync: consumeMealPortion } = useConsumeMealPortion();
   const handleEatenButtonPointerDown = (event: PointerEvent<HTMLButtonElement>) => {
     // Keep the touch on the checkbox button itself, so mobile browsers do not
     // treat a near-miss/drag as interaction with the recipe row next to it.
@@ -62,32 +66,33 @@ export default function Dashboard() {
       void toggleEatenAsync({ id: meal.id, isEaten: false });
       return;
     }
-    if (meal.recipeId && meal.recipe) {
-      setRatingMeal(meal);
+    setEatenPercentage("50");
+    setLeftoverDate(format(addDays(date, 1), "yyyy-MM-dd"));
+    setSelectedMealRating(null);
+    setRatingMeal(meal);
+  };
+  const completeEatenWithRating = async () => {
+    if (!ratingMeal || isSavingMealRating) return;
+    const percentage = Number(eatenPercentage);
+    if (!Number.isInteger(percentage) || percentage < 1 || percentage > 100) {
+      toast({ title: "Nieprawidłowy procent", description: "Wpisz liczbę całkowitą od 1 do 100.", variant: "destructive" });
       return;
     }
-    void toggleEatenAsync({ id: meal.id, isEaten: true });
-  };
-  const completeEatenWithRating = async (rating: number | null) => {
-    if (!ratingMeal || isSavingMealRating) return;
-    const meal = ratingMeal;
+    if (percentage < 100 && !/^\\d{4}-\\d{2}-\\d{2}$/.test(leftoverDate)) {
+      toast({ title: "Wybierz datę", description: "Wskaż dzień, na który przenieść pozostałość.", variant: "destructive" });
+      return;
+    }
     setIsSavingMealRating(true);
     try {
-      await toggleEatenAsync({ id: meal.id, isEaten: true });
-      if (rating !== null) {
-        const response = await fetchWithTimeout(`/api/meal-plan/entry/${meal.id}/rating`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ rating }),
-        });
-        if (!response.ok) {
-          const error = await response.json().catch(() => ({}));
-          throw new Error(error.message || "Nie udało się zapisać oceny.");
-        }
-      }
+      await consumeMealPortion({
+        id: Number(ratingMeal.id),
+        eatenPercentage: percentage,
+        ...(percentage < 100 ? { leftoverDate } : {}),
+        rating: selectedMealRating,
+      });
       setRatingMeal(null);
     } catch (error: any) {
-      toast({ title: "Błąd", description: error?.message || "Nie udało się oznaczyć posiłku jako zjedzony.", variant: "destructive" });
+      toast({ title: "Błąd", description: error?.message || "Nie udało się rozliczyć posiłku.", variant: "destructive" });
     } finally {
       setIsSavingMealRating(false);
     }
@@ -2111,30 +2116,29 @@ export default function Dashboard() {
       <Dialog open={!!ratingMeal} onOpenChange={(open) => { if (!open && !isSavingMealRating) setRatingMeal(null); }}>
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle>Jak oceniasz ten posiłek?</DialogTitle>
-            <DialogDescription>
-              {ratingMeal?.recipe?.name || "Przepis"} · {ratingMeal?.person === "A" ? "Tysia" : "Mati"}
-              <br />
-              Ocena dotyczy tylko tego konkretnego posiłku. Możesz też pominąć ocenę.
-            </DialogDescription>
+            <DialogTitle>Ile posiłku zostało zjedzone?</DialogTitle>
+            <DialogDescription>{ratingMeal?.recipe?.name || ratingMeal?.customName || "Posiłek"} · {ratingMeal?.person === "A" ? "Tysia" : "Mati"}</DialogDescription>
           </DialogHeader>
-          <div className="flex justify-center gap-2 py-3">
-            {[1, 2, 3, 4, 5].map((rating) => (
-              <Button key={rating} type="button" variant="ghost" size="icon" className="h-11 w-11"
-                disabled={isSavingMealRating}
-                aria-label={`Oceń na ${rating} gwiazdek`}
-                onClick={() => void completeEatenWithRating(rating)}>
-                <Star className="h-7 w-7 fill-amber-400 text-amber-500" />
-                <span className="sr-only">{rating}</span>
-              </Button>
-            ))}
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <label htmlFor="dashboard-eaten-percentage" className="text-sm font-medium">Zjedzona część (%)</label>
+              <Input id="dashboard-eaten-percentage" type="number" min="1" max="100" step="1" inputMode="numeric" value={eatenPercentage} onChange={(event) => setEatenPercentage(event.target.value)} />
+            </div>
+            {Number(eatenPercentage) < 100 && <div className="space-y-1">
+              <label htmlFor="dashboard-leftover-date" className="text-sm font-medium">Przenieś pozostałość na dzień</label>
+              <Input id="dashboard-leftover-date" type="date" value={leftoverDate} onChange={(event) => setLeftoverDate(event.target.value)} />
+            </div>}
+            {ratingMeal?.recipeId && <div className="space-y-2">
+              <p className="text-sm font-medium">Ocena posiłku (opcjonalnie)</p>
+              <div className="flex gap-1">{[1,2,3,4,5].map((rating) => <Button key={rating} type="button" size="icon" variant="ghost" disabled={isSavingMealRating} aria-label={`Oceń na ${rating}`} onClick={() => setSelectedMealRating(rating)}><Star className={cn("h-6 w-6", selectedMealRating !== null && rating <= selectedMealRating ? "fill-amber-400 text-amber-500" : "text-muted-foreground")} /></Button>)}</div>
+            </div>}
           </div>
           <DialogFooter className="sm:justify-between">
-            <Button type="button" variant="outline" disabled={isSavingMealRating} onClick={() => void completeEatenWithRating(null)}>Oznacz bez oceny</Button>
             <Button type="button" variant="ghost" disabled={isSavingMealRating} onClick={() => setRatingMeal(null)}>Anuluj</Button>
+            <Button type="button" disabled={isSavingMealRating} onClick={() => void completeEatenWithRating()}>{isSavingMealRating ? "Zapisywanie..." : "Potwierdź"}</Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
+      </Dialog>>
 
       <Dialog open={isEditingIngredients} onOpenChange={setIsEditingIngredients}>
         <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col bg-white">
