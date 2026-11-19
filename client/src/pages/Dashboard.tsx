@@ -50,7 +50,7 @@ export default function Dashboard() {
   const { mutateAsync: toggleEatenAsync } = useToggleEaten();
   const [ratingMeal, setRatingMeal] = useState<any | null>(null);
   const [isSavingMealRating, setIsSavingMealRating] = useState(false);
-  const [eatenPercentage, setEatenPercentage] = useState("50");
+  const [eatenPercentage, setEatenPercentage] = useState("100");
   const [leftoverDate, setLeftoverDate] = useState(format(addDays(date, 1), "yyyy-MM-dd"));
   const [selectedMealRating, setSelectedMealRating] = useState<number | null>(null);
   const { mutateAsync: consumeMealPortion } = useConsumeMealPortion();
@@ -66,7 +66,7 @@ export default function Dashboard() {
       void toggleEatenAsync({ id: meal.id, isEaten: false });
       return;
     }
-    setEatenPercentage("50");
+    setEatenPercentage("100");
     setLeftoverDate(format(addDays(date, 1), "yyyy-MM-dd"));
     setSelectedMealRating(null);
     setRatingMeal(meal);
