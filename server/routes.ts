@@ -270,6 +270,7 @@ function summarizeDayEntries(date: string, entries: any[]) {
       // The summary response is used by Dashboard and Meal Plan. Keep the selected
       // variant in the payload so the UI label stays in sync with recalculated totals.
       portionVariant: entry.portionVariant || null,
+      originalDishPercentage: entry.originalDishPercentage ?? null,
       ingredientsModified: Boolean(entry.ingredientsModified),
       recipeSnapshot: entry.recipeSnapshot || null,
       ingredients: entry.ingredients || [],
@@ -1283,6 +1284,13 @@ export async function registerRoutes(
 
       const eatenFraction = input.eatenPercentage / 100;
       const leftoverFraction = 1 - eatenFraction;
+      const sourceDishPercentage = entry.originalDishPercentage == null ? 100 : Number(entry.originalDishPercentage);
+      const eatenOriginalDishPercentage = input.eatenPercentage === 100 && entry.originalDishPercentage == null
+        ? null
+        : Math.round(sourceDishPercentage * eatenFraction);
+      const leftoverOriginalDishPercentage = input.eatenPercentage < 100
+        ? sourceDishPercentage - (eatenOriginalDishPercentage ?? 0)
+        : null;
       const sourceRows = getEntryIngredientsForSummary(entry);
       const hasIngredients = sourceRows.length > 0;
       const entryServings = Number(entry.servings) || 1;
@@ -1357,6 +1365,8 @@ export async function registerRoutes(
         eatenCustom: hasIngredients ? scaleIngredientNutrition(eatenFraction) : scaleCustom(eatenFraction),
         leftoverCustom: hasIngredients ? scaleIngredientNutrition(leftoverFraction) : scaleCustom(leftoverFraction),
         hasIngredients,
+        eatenOriginalDishPercentage,
+        leftoverOriginalDishPercentage,
       });
       if (input.rating != null && entry.recipeId) {
         try {
