@@ -1296,8 +1296,9 @@ export async function registerRoutes(
         ? consumedWeight / expectedPortionWeight
         : 1;
 
-      const actualIngredients = sourceRows.map((row: any, index: number) => {
-        const resolved = resolveIngredientForScaling(entry, row);
+      const occurrenceTracker = new Map<number, number>();
+      const actualIngredients = sourceRows.map((row: any) => {
+        const resolved = resolveIngredientForScaling(entry, row, occurrenceTracker);
         const amount = calculateScaledAmount(resolved, entryServings, recipeServings) * weightMultiplier;
         return { ingredientId: Number(row.ingredientId), amount: Math.max(0, Number(amount) || 0) };
       }).filter((row: any) => Number.isInteger(row.ingredientId) && row.ingredientId > 0);
