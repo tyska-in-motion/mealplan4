@@ -2322,9 +2322,19 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
               }
 
               const fullMeal = meal?.id ? await fetchMealEntryFull(Number(meal.id)) : null;
-              setViewingRecipe(fullMeal?.recipe || await fetchRecipeDetails(Number(recipe.id)));
-              setViewingMeal({ ...(fullMeal || meal), servings: servingsForView });
-              setViewingServings(servingsForView);
+              const isPartialMeal = fullMeal?.originalDishPercentage != null || meal?.originalDishPercentage != null;
+              const resolvedRecipe = fullMeal?.recipe
+                || (recipe?.id ? await fetchRecipeDetails(Number(recipe.id)) : null)
+                || {
+                  id: null,
+                  name: fullMeal?.customName || meal?.customName || "Częściowo zjedzony posiłek",
+                  servings: 1,
+                  ingredients: fullMeal?.ingredients || meal?.ingredients || [],
+                  instructions: [],
+                };
+              setViewingRecipe(resolvedRecipe);
+              setViewingMeal({ ...(fullMeal || meal), servings: isPartialMeal ? 1 : servingsForView });
+              setViewingServings(isPartialMeal ? 1 : servingsForView);
               setIsSharedRecipeView(!!options?.shared || cookedBatchId > 0);
               setViewingSharedBatchId(cookedBatchId || null);
             }}
@@ -2665,7 +2675,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      {viewingMeal?.id && viewingRecipe?.portioningMode === "individual" && !isSharedRecipeView && !viewingMeal?.isWholeRecipeView && (
+      {viewingMeal?.id && viewingMeal?.originalDishPercentage == null && viewingRecipe?.portioningMode === "individual" && !isSharedRecipeView && !viewingMeal?.isWholeRecipeView && (
         <div className="mx-auto mb-3 w-full max-w-3xl rounded-xl border bg-background p-3 sm:p-4">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div><p className="text-sm font-semibold">Indywidualny wariant porcji</p><p className="text-xs text-muted-foreground">Zmiana wariantu ustawia składniki na zapisane ilości A/B/C.</p></div>
@@ -2717,10 +2727,10 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
           : isSharedRecipeView && viewingMeal?.sharedParticipantEntries ? undefined : viewingMeal?.ingredients}
         originalDishPercentage={viewingMeal?.originalDishPercentage ?? null}
         frequentAddonIds={viewingRecipe?.frequentAddons?.map((addon: any) => addon.ingredientId) || []}
-        onEditIngredients={viewingMeal && !(viewingMeal?.isWholeRecipeView && isIndividualVariantRecipe(viewingRecipe)) ? (isSharedRecipeView ? startEditingSharedIngredients : startEditing) : undefined}
-        allowIngredientEditing={!!viewingMeal && !(viewingMeal?.isWholeRecipeView && isIndividualVariantRecipe(viewingRecipe)) && !(isSharedRecipeView && viewingMeal?.id && getEditedSharedParticipantEntries(viewingMeal).length > 0)}
+        onEditIngredients={viewingMeal && viewingMeal?.originalDishPercentage == null && !(viewingMeal?.isWholeRecipeView && isIndividualVariantRecipe(viewingRecipe)) ? (isSharedRecipeView ? startEditingSharedIngredients : startEditing) : undefined}
+        allowIngredientEditing={!!viewingMeal && viewingMeal?.originalDishPercentage == null && !(viewingMeal?.isWholeRecipeView && isIndividualVariantRecipe(viewingRecipe)) && !(isSharedRecipeView && viewingMeal?.id && getEditedSharedParticipantEntries(viewingMeal).length > 0)}
         servingsLockedReason={!isSharedRecipeView && hasEditedMealIngredients(viewingMeal) ? "Porcje zablokowane (edytowano składniki)" : undefined}
-        onRestoreOriginalIngredients={!(viewingMeal?.isWholeRecipeView && isIndividualVariantRecipe(viewingRecipe)) && ((isSharedRecipeView && getEditedSharedParticipantEntries(viewingMeal).length > 0) || (!isSharedRecipeView && hasEditedMealIngredients(viewingMeal))) ? restoreOriginalIngredients : undefined}
+        onRestoreOriginalIngredients={viewingMeal?.originalDishPercentage == null && !(viewingMeal?.isWholeRecipeView && isIndividualVariantRecipe(viewingRecipe)) && ((isSharedRecipeView && getEditedSharedParticipantEntries(viewingMeal).length > 0) || (!isSharedRecipeView && hasEditedMealIngredients(viewingMeal))) ? restoreOriginalIngredients : undefined}
         usePrecalculatedAmounts={!!viewingMeal?.isWholeRecipeView || (isSharedRecipeView && !viewingMeal?.sharedParticipantEntries)}
         switchPlannedPersonLabel={viewingMeal?.sharedParticipantEntries ? (viewingSharedPerson === "A" ? "Pokaż Matiego" : "Pokaż Tysię") : undefined}
         onSwitchPlannedPerson={viewingMeal?.sharedParticipantEntries ? () => setViewingSharedPerson((person) => person === "A" ? "B" : "A") : undefined}
@@ -4325,8 +4335,8 @@ function DaySection({ day, sectionId, recipes, userSettings, allAvailableIngredi
                                   <p className={cn("min-w-0 flex-1 truncate text-sm font-semibold leading-snug", entry.isEaten && "line-through text-muted-foreground dark:text-emerald-100")} title={entry.recipe?.name || entry.customName}>
                                     {entry.recipe?.name || entry.customName}
                                   </p>
-                                  {entry.recipe && (
-                                    <button onClick={() => onViewPlannedRecipe(entry.recipe, entry)} className="shrink-0 rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-primary" title="Podgląd przepisu" aria-label="Podgląd przepisu">
+                                  {(entry.recipe || (entry.originalDishPercentage != null && entry.ingredients?.length > 0)) && (
+                                    <button onClick={() => onViewPlannedRecipe(entry.recipe, entry)} className="shrink-0 rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-primary" title="Podgląd składników" aria-label="Podgląd składników">
                                       <Eye className="h-3.5 w-3.5" />
                                     </button>
                                   )}
