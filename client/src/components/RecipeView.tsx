@@ -1122,7 +1122,7 @@ ${imageSource ? '<div class="hero"><img id="recipe-photo" src="' + escapeRecipeC
                   )}
                 </div>
               </div>
-              <ul className={compact ? "space-y-1 text-xs" : "space-y-2"}>
+              <ul className={compact ? "space-y-1 text-xs" : "space-y-2"} style={originalDishPercentage != null && originalDishPercentage < 100 ? { opacity: 0.78 } : undefined}>
                 {ingredientRows.map(({ ri, isFrequentAddon, scalingIngredient }: any, idx: number) => {
                   const ingredientItemClass = isFrequentAddon
                     ? "border-emerald-300 bg-emerald-50/70"
@@ -1145,7 +1145,7 @@ ${imageSource ? '<div class="hero"><img id="recipe-photo" src="' + escapeRecipeC
                           </span>
                         )}
                       </span>
-                      {originalDishPercentage == null && <span className="text-right font-medium whitespace-nowrap pl-2">{getIngredientAmountLabel(ri, isFrequentAddon, scalingIngredient)}</span>}
+                      <span className="text-right font-medium whitespace-nowrap pl-2">{getIngredientAmountLabel(ri, isFrequentAddon, scalingIngredient)}</span>
                     </div>
                     {(() => {
                       const sharedInfo = getSharedAddonPersonInfo(ri);
@@ -1156,7 +1156,7 @@ ${imageSource ? '<div class="hero"><img id="recipe-photo" src="' + escapeRecipeC
                         </span>
                       );
                     })()}
-                    {originalDishPercentage == null && Number(ri.ingredient?.unitWeight || 0) > 0 && (
+                    {Number(ri.ingredient?.unitWeight || 0) > 0 && (
                       <span className="text-[10px] text-muted-foreground italic">
                         ({ri.ingredient.unitDescription ? `${ri.ingredient.unitDescription} - ` : ""}1 sztuka to ok. {ri.ingredient.unitWeight}g)
                       </span>

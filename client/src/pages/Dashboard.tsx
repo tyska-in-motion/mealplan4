@@ -1068,11 +1068,19 @@ export default function Dashboard() {
     // The eye is a per-person preview, including for meals assigned to a
     // shared batch. The notebook button remains the explicit whole-batch view.
     const fullMeal = await fetchMealEntryFull(Number(meal.id));
-    setViewingRecipe(fullMeal.recipe || meal.recipe);
+    const isPartialMeal = fullMeal?.originalDishPercentage != null || meal?.originalDishPercentage != null;
+    const resolvedRecipe = fullMeal.recipe || meal.recipe || {
+      id: null,
+      name: fullMeal?.customName || meal?.customName || "Częściowo zjedzony posiłek",
+      servings: 1,
+      ingredients: fullMeal?.ingredients || meal?.ingredients || [],
+      instructions: [],
+    };
+    setViewingRecipe(resolvedRecipe);
     setViewingMeal(fullMeal);
-    setViewingPlannedServings(undefined);
-    setDisableRecipeScaling(hasEditedMealIngredients(fullMeal));
-    setUsePrecalculatedIngredientAmounts(Number(fullMeal?.cookedBatchId || fullMeal?.cookedBatch?.id) > 0);
+    setViewingPlannedServings(isPartialMeal ? 1 : undefined);
+    setDisableRecipeScaling(isPartialMeal || hasEditedMealIngredients(fullMeal));
+    setUsePrecalculatedIngredientAmounts(isPartialMeal || Number(fullMeal?.cookedBatchId || fullMeal?.cookedBatch?.id) > 0);
   };
 
   const switchViewingMealPerson = async (meal: any) => {
@@ -1769,11 +1777,12 @@ export default function Dashboard() {
         plannedServings={viewingPlannedServings ?? (viewingMeal ? Number(viewingMeal.servings) : undefined)}
         mealEntryIngredients={viewingMeal?.ingredients}
         frequentAddonIds={viewingRecipe?.frequentAddons?.map((addon: any) => addon.ingredientId) || []}
-        onEditIngredients={viewingMeal ? startEditing : undefined}
-        onPlannedServingsChange={viewingMeal && !disableRecipeScaling && !viewingMeal?.wholeRecipeBatchId ? updateViewingMealServings : undefined}
+        onEditIngredients={viewingMeal && viewingMeal?.originalDishPercentage == null ? startEditing : undefined}
+        onPlannedServingsChange={viewingMeal && viewingMeal?.originalDishPercentage == null && !disableRecipeScaling && !viewingMeal?.wholeRecipeBatchId ? updateViewingMealServings : undefined}
         servingsLockedReason={hasEditedMealIngredients(viewingMeal) ? "Porcje zablokowane (edytowano składniki)" : undefined}
-        allowIngredientEditing={!!viewingMeal}
-        onRestoreOriginalIngredients={hasEditedMealIngredients(viewingMeal) ? restoreOriginalIngredients : undefined}
+        allowIngredientEditing={!!viewingMeal && viewingMeal?.originalDishPercentage == null}
+        onRestoreOriginalIngredients={viewingMeal?.originalDishPercentage == null && hasEditedMealIngredients(viewingMeal) ? restoreOriginalIngredients : undefined}
+        originalDishPercentage={viewingMeal?.originalDishPercentage ?? null}
         usePrecalculatedAmounts={usePrecalculatedIngredientAmounts}
         switchPlannedPersonLabel={alternateViewingMeal ? `Pokaż: ${personName[(alternateViewingMeal.person || "A") as "A" | "B"]}` : undefined}
         onSwitchPlannedPerson={alternateViewingMeal ? () => switchViewingMealPerson(alternateViewingMeal) : undefined}
@@ -2069,12 +2078,12 @@ export default function Dashboard() {
                           </div>
                         </div>
                         <div className="absolute right-1 top-1 flex items-center gap-0.5">
-                          {meal.recipe && (
+                          {(meal.recipe || (meal.originalDishPercentage != null && meal.ingredients?.length > 0)) && (
                             <button
                               onClick={() => openMealRecipe(meal)}
                               className="rounded p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
-                              title="Pokaż przepis"
-                              aria-label={`Pokaż przepis: ${meal.recipe?.name}`}
+                              title="Pokaż składniki"
+                              aria-label={`Pokaż składniki: ${meal.recipe?.name || meal.customName || "posiłek"}`}
                             >
                               <Eye className="h-3.5 w-3.5" />
                             </button>
