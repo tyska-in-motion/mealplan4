@@ -1282,6 +1282,31 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Wybierz dzień, na który przenieść pozostałość." });
       }
 
+      const saveRating = async () => {
+        if (input.rating == null || !entry.recipeId) return;
+        try {
+          await storage.appendAppStateItem("meal-entry-ratings", {
+            id: `${id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            mealEntryId: id,
+            recipeId: Number(entry.recipeId),
+            person: entry.person === "B" ? "B" : "A",
+            date: String(entry.date).slice(0, 10),
+            rating: input.rating,
+            createdAt: new Date().toISOString(),
+          });
+        } catch (ratingError) {
+          console.error("Meal was marked or split, but its optional rating could not be saved:", ratingError);
+        }
+      };
+
+      // A full portion is only a status change. Keep its recipe, snapshot,
+      // ingredients, and any existing original-dish percentage untouched.
+      if (input.eatenPercentage === 100) {
+        const updated = await storage.updateMealEntry(id, { isEaten: true });
+        await saveRating();
+        return res.json({ success: true, entry: updated, leftover: null });
+      }
+
       const eatenFraction = input.eatenPercentage / 100;
       const leftoverFraction = 1 - eatenFraction;
       const sourceDishPercentage = entry.originalDishPercentage == null ? 100 : Number(entry.originalDishPercentage);
@@ -1368,21 +1393,7 @@ export async function registerRoutes(
         eatenOriginalDishPercentage,
         leftoverOriginalDishPercentage,
       });
-      if (input.rating != null && entry.recipeId) {
-        try {
-          await storage.appendAppStateItem("meal-entry-ratings", {
-            id: `${id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-            mealEntryId: id,
-            recipeId: Number(entry.recipeId),
-            person: entry.person === "B" ? "B" : "A",
-            date: String(entry.date).slice(0, 10),
-            rating: input.rating,
-            createdAt: new Date().toISOString(),
-          });
-        } catch (ratingError) {
-          console.error("Meal was split, but its optional rating could not be saved:", ratingError);
-        }
-      }
+      await saveRating();
       res.json({ success: true, ...result });
     } catch (error) {
       if (error instanceof z.ZodError) return res.status(400).json({ message: "Podaj całkowity procent od 1 do 100." });
