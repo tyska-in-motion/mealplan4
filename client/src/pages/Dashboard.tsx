@@ -2080,7 +2080,12 @@ export default function Dashboard() {
                         <div className="absolute right-1 top-1 flex items-center gap-0.5">
                           {(meal.recipe || (meal.originalDishPercentage != null && meal.ingredients?.length > 0)) && (
                             <button
-                              onClick={() => openMealRecipe(meal)}
+                              type="button"
+                              onClick={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                void openMealRecipe(meal);
+                              }}
                               className="rounded p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-primary"
                               title="Pokaż składniki"
                               aria-label={`Pokaż składniki: ${meal.recipe?.name || meal.customName || "posiłek"}`}
