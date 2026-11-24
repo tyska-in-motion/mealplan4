@@ -91,11 +91,15 @@ export function useConsumeMealPortion() {
 
 export function useToggleEaten() {
   const queryClient = useQueryClient();
+  const { toast } = useToast();
   return useMutation({
     mutationFn: async ({ id, isEaten }: { id: number; isEaten: boolean }) => {
       const res = isEaten
         ? await apiRequest("PATCH", `/api/meal-plan/entry/${id}`, { isEaten: true })
-        : await fetchWithTimeout(`/api/meal-plan/entry/${id}/undo-consume`, { method: "POST" });
+        : await fetchWithTimeout(`/api/meal-plan/entry/${id}/undo-consume`, {
+            method: "POST",
+            credentials: "include",
+          });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.message || "Nie udało się zmienić statusu posiłku.");
       return data;
@@ -118,7 +122,8 @@ export function useToggleEaten() {
 
       return { previousPlans };
     },
-    onError: (_error, _variables, context) => {
+    onError: (error: any, _variables, context) => {
+      toast({ title: "Nie udało się cofnąć rozliczenia", description: error?.message || "Spróbuj ponownie.", variant: "destructive" });
       if (!context?.previousPlans) return;
       context.previousPlans.forEach(([queryKey, queryData]: [readonly unknown[], unknown]) => {
         queryClient.setQueryData(queryKey, queryData);
