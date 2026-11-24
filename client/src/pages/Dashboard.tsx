@@ -1065,22 +1065,50 @@ export default function Dashboard() {
   const getProgressBarWidth = (current: number, target: number) => Math.min(getProgressPercent(current, target), 100);
 
   const openMealRecipe = async (meal: any) => {
-    // The eye is a per-person preview, including for meals assigned to a
-    // shared batch. The notebook button remains the explicit whole-batch view.
-    const fullMeal = await fetchMealEntryFull(Number(meal.id));
-    const isPartialMeal = fullMeal?.originalDishPercentage != null || meal?.originalDishPercentage != null;
-    const resolvedRecipe = fullMeal.recipe || meal.recipe || {
-      id: null,
-      name: fullMeal?.customName || meal?.customName || "Częściowo zjedzony posiłek",
-      servings: 1,
-      ingredients: fullMeal?.ingredients || meal?.ingredients || [],
-      instructions: [],
-    };
-    setViewingRecipe(resolvedRecipe);
-    setViewingMeal(fullMeal);
-    setViewingPlannedServings(isPartialMeal ? 1 : undefined);
-    setDisableRecipeScaling(isPartialMeal || hasEditedMealIngredients(fullMeal));
-    setUsePrecalculatedIngredientAmounts(isPartialMeal || Number(fullMeal?.cookedBatchId || fullMeal?.cookedBatch?.id) > 0);
+    // A partially eaten entry already contains its final, pre-calculated
+    // ingredient rows in the day summary. Open that snapshot directly:
+    // refetching the full entry here made the preview depend on a second
+    // request and could leave the eye action with no visible result.
+    if (meal?.originalDishPercentage != null) {
+      const ingredientRows = Array.isArray(meal.ingredients) ? meal.ingredients : [];
+      const partialRecipe = meal.recipe
+        ? { ...meal.recipe, servings: 1, ingredients: ingredientRows.length ? ingredientRows : (meal.recipe.ingredients || []) }
+        : {
+            id: null,
+            name: meal.customName || "Częściowo zjedzony posiłek",
+            servings: 1,
+            ingredients: ingredientRows,
+            instructions: [],
+          };
+      setViewingRecipe(partialRecipe);
+      setViewingMeal({ ...meal, servings: 1 });
+      setViewingPlannedServings(1);
+      setDisableRecipeScaling(true);
+      setUsePrecalculatedIngredientAmounts(true);
+      return;
+    }
+
+    try {
+      const fullMeal = await fetchMealEntryFull(Number(meal.id));
+      const resolvedRecipe = fullMeal?.recipe || meal.recipe || {
+        id: null,
+        name: fullMeal?.customName || meal?.customName || "Posiłek",
+        servings: 1,
+        ingredients: fullMeal?.ingredients || meal?.ingredients || [],
+        instructions: [],
+      };
+      setViewingRecipe(resolvedRecipe);
+      setViewingMeal(fullMeal || meal);
+      setViewingPlannedServings(undefined);
+      setDisableRecipeScaling(hasEditedMealIngredients(fullMeal));
+      setUsePrecalculatedIngredientAmounts(Number(fullMeal?.cookedBatchId || fullMeal?.cookedBatch?.id) > 0);
+    } catch (error: any) {
+      toast({
+        title: "Nie udało się otworzyć podglądu",
+        description: error?.message || "Nie udało się pobrać danych posiłku.",
+        variant: "destructive",
+      });
+    }
   };
 
   const switchViewingMealPerson = async (meal: any) => {
