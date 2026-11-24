@@ -3017,24 +3017,22 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
           </DialogHeader>
 
           <div className="space-y-4 mt-2 sm:mt-4">
-            <div className="rounded-lg border border-border/70 bg-muted/30 px-3 py-2">
-              <label className="flex items-center gap-2 text-sm font-medium">
-                <input
-                  type="checkbox"
-                  checked={addRecipeForBothPeople}
-                  onChange={(e) => setAddRecipeForBothPeople(e.target.checked)}
-                />
-                Dodaj posiłek dla obu osób
-              </label>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {addRecipeForBothPeople
-                  ? "Rekomendacje muszą pasować do pozostałego bilansu A i B."
-                  : `Najpierw pokażę przepisy pasujące A i B, a niżej te pasujące tylko do ${personName[selectedPerson]}.`}
-              </p>
-            </div>
             {recommendedSharedBatches.length > 0 && (
               <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-3">
                 <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Polecane pozostałe porcje ze wspólnych posiłków</p>
+                <label className="mt-2 flex items-center gap-2 text-sm font-medium">
+                  <input
+                    type="checkbox"
+                    checked={addRecipeForBothPeople}
+                    onChange={(e) => setAddRecipeForBothPeople(e.target.checked)}
+                  />
+                  Dodaj posiłek dla obu osób
+                </label>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {addRecipeForBothPeople
+                    ? "Rekomendacje muszą pasować do pozostałego bilansu A i B."
+                    : `Najpierw pokażę przepisy pasujące A i B, a niżej te pasujące tylko do ${personName[selectedPerson]}.`}
+                </p>
                 <div className="mt-2 space-y-2">
                   {recommendedSharedBatches.map((batch: any) => {
                     const isSelectingAddons = selectedRecommendedBatchId === Number(batch.id);
@@ -3324,6 +3322,19 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
                           </p>
                         );
                       })}
+                    <label className="mt-2 flex items-center gap-2 text-sm font-medium">
+                      <input
+                        type="checkbox"
+                        checked={addRecipeForBothPeople}
+                        onChange={(e) => setAddRecipeForBothPeople(e.target.checked)}
+                      />
+                      Dodaj posiłek dla obu osób
+                    </label>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {addRecipeForBothPeople
+                        ? "Rekomendacje i podsumowanie obejmują obie osoby."
+                        : `Podsumowanie dotyczy tylko ${personName[selectedPerson]}.`}
+                    </p>
                   </div>
                 )}
 
