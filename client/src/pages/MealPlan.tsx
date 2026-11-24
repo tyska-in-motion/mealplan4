@@ -2385,7 +2385,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
                       name: meal.customName || "Częściowo zjedzony posiłek",
                       servings: 1,
                       ingredients: ingredientRows,
-                      instructions: [],
+                      instructions: "",
                     };
                 setViewingRecipe(partialRecipe);
                 setViewingMeal({ ...meal, servings: 1 });
