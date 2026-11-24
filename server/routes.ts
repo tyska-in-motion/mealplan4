@@ -1302,7 +1302,7 @@ export async function registerRoutes(
       // A full portion is only a status change. Keep its recipe, snapshot,
       // ingredients, and any existing original-dish percentage untouched.
       if (input.eatenPercentage === 100) {
-        const updated = await storage.updateMealEntry(id, { isEaten: true });
+        const updated = await storage.markMealEntryEatenWithUndo(id);
         await saveRating();
         return res.json({ success: true, entry: updated, leftover: null });
       }
@@ -1401,6 +1401,21 @@ export async function registerRoutes(
       if (message.includes("już rozliczony")) return res.status(409).json({ message });
       console.error("Error splitting eaten meal:", error);
       res.status(500).json({ message: "Nie udało się rozliczyć posiłku." });
+    }
+  });
+
+  app.post("/api/meal-plan/entry/:id/undo-consume", async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ message: "Nieprawidłowy identyfikator posiłku." });
+      const entry = await storage.undoMealEntryConsumption(id);
+      if (!entry) return res.status(409).json({ message: "Brak zapisanych danych potrzebnych do cofnięcia rozliczenia." });
+      return res.json({ success: true, entry });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes("Nie można cofnąć")) return res.status(409).json({ message });
+      console.error("Error undoing meal consumption:", error);
+      return res.status(500).json({ message: "Nie udało się cofnąć rozliczenia posiłku." });
     }
   });
 
