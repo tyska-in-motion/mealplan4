@@ -67,6 +67,7 @@ export interface IStorage {
   createMealEntry(entry: CreateMealEntryRequest & { createSharedBatch?: boolean; sharedBatchServings?: number }): Promise<MealEntry>;
   updateMealEntry(id: number, updates: Partial<MealEntry> & { servings?: number }): Promise<MealEntry>;
   splitAndMarkMealEntry(input: { id: number; leftoverDate: string; mealType: string; person: string; customName: string; eatenIngredients: { ingredientId: number; amount: number }[]; leftoverIngredients: { ingredientId: number; amount: number }[]; eatenCustom: { calories: number | null; protein: number | null; carbs: number | null; fat: number | null; sugar: number | null; fiber: number | null }; leftoverCustom: { calories: number | null; protein: number | null; carbs: number | null; fat: number | null; sugar: number | null; fiber: number | null }; hasIngredients: boolean; eatenOriginalDishPercentage: number | null; leftoverOriginalDishPercentage: number | null }): Promise<any>;
+  markMealEntryEatenWithUndo(id: number): Promise<MealEntry>;
   undoMealEntryConsumption(id: number): Promise<MealEntry | null>;
   deleteMealEntry(id: number): Promise<void>;
   getMealEntriesRange(startDate: string, endDate: string): Promise<MealEntryWithRecipe[]>;
@@ -1369,6 +1370,32 @@ export class DatabaseStorage implements IStorage {
           },
         });
       return { entry: updated, leftover };
+    });
+  }
+
+  async markMealEntryEatenWithUndo(id: number): Promise<MealEntry> {
+    return db.transaction(async (tx) => {
+      const [originalEntry] = await tx.select().from(mealEntries).where(eq(mealEntries.id, id)).limit(1);
+      if (!originalEntry || originalEntry.isEaten) throw new Error("Ten posiłek został już rozliczony lub nie istnieje.");
+      const originalIngredients = await tx.select().from(mealEntryIngredients).where(eq(mealEntryIngredients.mealEntryId, id));
+      const snapshot = {
+        entry: originalEntry,
+        ingredients: originalIngredients.map((row) => ({ ingredientId: row.ingredientId, amount: row.amount, scalingType: row.scalingType })),
+        leftoverId: null,
+      };
+      const snapshotJson = JSON.stringify(snapshot);
+      await tx.insert(appState)
+        .values({ key: "meal-entry-consumption-undo", data: { [String(id)]: snapshot }, updatedAt: new Date() })
+        .onConflictDoUpdate({
+          target: appState.key,
+          set: {
+            data: sql`jsonb_set(CASE WHEN jsonb_typeof(${appState.data}) = 'object' THEN ${appState.data} ELSE '{}'::jsonb END, ARRAY[${String(id)}]::text[], ${snapshotJson}::jsonb, true)`,
+            updatedAt: new Date(),
+          },
+        });
+      const [updated] = await tx.update(mealEntries).set({ isEaten: true }).where(and(eq(mealEntries.id, id), eq(mealEntries.isEaten, false))).returning();
+      if (!updated) throw new Error("Ten posiłek został już rozliczony lub nie istnieje.");
+      return updated;
     });
   }
 
