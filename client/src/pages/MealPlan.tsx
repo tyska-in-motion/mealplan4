@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useMemo, useEffect, useRef, type MouseEvent, type PointerEvent } from "react";
+import { Component, lazy, Suspense, useState, useMemo, useEffect, useRef, type ErrorInfo, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import { Layout } from "@/components/Layout";
 import { format, addDays, subDays, eachDayOfInterval } from "date-fns";
 import { pl } from "date-fns/locale";
@@ -44,6 +44,56 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+
+
+class PartialMealPreviewErrorBoundary extends Component<
+  { children: ReactNode; onClose: () => void },
+  { error: Error | null }
+> {
+  state = { error: null as Error | null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("[PartialMealPreview] Błąd renderowania podglądu częściowo zjedzonego posiłku", {
+      message: error.message,
+      stack: error.stack,
+      componentStack: info.componentStack,
+    });
+  }
+
+  render() {
+    if (this.state.error) {
+      const error = this.state.error;
+      return (
+        <div role="alert" className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-background/95 p-4">
+          <div className="w-full max-w-2xl space-y-4 rounded-lg border bg-card p-5 shadow-lg">
+            <div className="space-y-1">
+              <h2 className="text-lg font-semibold text-destructive">Nie udało się otworzyć podglądu posiłku</h2>
+              <p className="text-sm text-muted-foreground">Wystąpił błąd JavaScript podczas renderowania częściowo zjedzonego posiłku.</p>
+            </div>
+            <div className="rounded-md border bg-muted/50 p-3">
+              <p className="break-words font-mono text-sm font-semibold">{error.name}: {error.message || "Brak treści błędu"}</p>
+              {error.stack && (
+                <details className="mt-3">
+                  <summary className="cursor-pointer text-sm font-medium">Pokaż stack trace</summary>
+                  <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-words text-xs">{error.stack}</pre>
+                </details>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">Szczegóły błędu i stos komponentów zostały również zapisane w konsoli przeglądarki.</p>
+            <div className="flex justify-end">
+              <Button type="button" onClick={this.props.onClose}>Zamknij podgląd</Button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const isIndividualVariantRecipe = (recipe: any) =>
   recipe?.portioningMode === "individual" || getAvailableVariants(recipe?.ingredients || []).length > 0;
@@ -2731,6 +2781,18 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
         </div>
       )}
 
+      <PartialMealPreviewErrorBoundary
+        key={`${viewingMeal?.id ?? "recipe"}-${viewingMeal?.originalDishPercentage ?? "full"}`}
+        onClose={() => {
+          setViewingRecipe(null);
+          setViewingMeal(null);
+          setViewingServings(undefined);
+          setViewingSharedPerson("A");
+          setIsSharedRecipeView(false);
+          setIsViewingSharedDayRecipe(false);
+          setViewingSharedBatchId(null);
+        }}
+      >
       <Suspense fallback={null}>
       <RecipeView
         recipe={viewingRecipe}
@@ -2796,6 +2858,7 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
         }}
       />
       </Suspense>
+      </PartialMealPreviewErrorBoundary>
 
       <Dialog open={isEditingIngredients} onOpenChange={setIsEditingIngredients}>
         <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col bg-white sm:max-h-[90vh] max-sm:h-[100dvh] max-sm:max-h-none">
