@@ -775,12 +775,17 @@ export default function Recipes() {
         recipeNutrition = getRecipeTotals(recipe, servings);
       }
 
+      // In individual-variant mode A/B/C amounts describe one portion.
+      // Multiply the selected default variant (and its default addons) by this person's
+      // configured default serving count, just as shared recipes scale their ingredients.
+      const servingMultiplier = recipe?.portioningMode === "individual" ? servings : 1;
+
       return {
-        calories: Math.round(recipeNutrition.calories + addonNutrition.calories),
-        protein: Math.round(recipeNutrition.protein + addonNutrition.protein),
-        carbs: Math.round(recipeNutrition.carbs + addonNutrition.carbs),
-        fat: Math.round(recipeNutrition.fat + addonNutrition.fat),
-        price: recipeNutrition.price + addonNutrition.price,
+        calories: Math.round((recipeNutrition.calories + addonNutrition.calories) * servingMultiplier),
+        protein: Math.round((recipeNutrition.protein + addonNutrition.protein) * servingMultiplier),
+        carbs: Math.round((recipeNutrition.carbs + addonNutrition.carbs) * servingMultiplier),
+        fat: Math.round((recipeNutrition.fat + addonNutrition.fat) * servingMultiplier),
+        price: (recipeNutrition.price + addonNutrition.price) * servingMultiplier,
       };
     };
 
@@ -797,7 +802,7 @@ export default function Recipes() {
 
   const formatDefaultServingsCalories = (recipe: any) => {
     const nutrition = getNutritionForDefaultServings(recipe);
-    return `kcal: ${nutrition.tysia.calories} • ${nutrition.mati.calories}`;
+    return `Tysia: ${nutrition.tysia.calories} kcal || Mati: ${nutrition.mati.calories} kcal`;
   };
 
   const formatDefaultServingsPrice = (recipe: any) => {
