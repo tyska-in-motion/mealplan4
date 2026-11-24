@@ -1404,10 +1404,24 @@ export class DatabaseStorage implements IStorage {
       const [stateRow] = await tx.select().from(appState).where(eq(appState.key, "meal-entry-consumption-undo")).limit(1);
       const snapshots = stateRow?.data && typeof stateRow.data === "object" ? stateRow.data as Record<string, any> : {};
       const snapshot = snapshots[String(id)];
-      if (!snapshot?.entry) return null;
 
       const [current] = await tx.select().from(mealEntries).where(eq(mealEntries.id, id)).limit(1);
       if (!current || !current.isEaten) throw new Error("Nie można cofnąć rozliczenia: wpis został już zmieniony.");
+
+      // Backward compatibility for meals marked as eaten before undo snapshots
+      // were introduced. Restore only entries that still retain their recipe
+      // identity; split/partial meals have no recipe identity and must not be
+      // "restored" by merely flipping the eaten flag.
+      if (!snapshot?.entry) {
+        if (current.recipeId != null || current.recipeSnapshot != null) {
+          const [restoredLegacyEntry] = await tx.update(mealEntries)
+            .set({ isEaten: false })
+            .where(eq(mealEntries.id, id))
+            .returning();
+          return restoredLegacyEntry ?? null;
+        }
+        return null;
+      }
 
       if (snapshot.leftoverId != null) {
         await tx.delete(mealEntryIngredients).where(eq(mealEntryIngredients.mealEntryId, Number(snapshot.leftoverId)));
