@@ -9,8 +9,8 @@ export type InstructionLink = {
   multiplier?: number;
 };
 
-export const parseInstructionLines = (instructions?: string) =>
-  (instructions || "")
+export const parseInstructionLines = (instructions?: string | null) =>
+  (typeof instructions === "string" ? instructions : "")
     .replace(/\r\n?/g, "\n")
     // Support recipes pasted as: "1. Do this. 2. Do that." in addition to one-step-per-line input.
     .replace(/([^\n])\s+(?=\d+[.)]\s+)/g, "$1\n")
