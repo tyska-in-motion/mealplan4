@@ -93,8 +93,12 @@ export function useToggleEaten() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, isEaten }: { id: number; isEaten: boolean }) => {
-      const res = await apiRequest("PATCH", `/api/meal-plan/entry/${id}`, { isEaten });
-      return await res.json();
+      const res = isEaten
+        ? await apiRequest("PATCH", `/api/meal-plan/entry/${id}`, { isEaten: true })
+        : await fetchWithTimeout(`/api/meal-plan/entry/${id}/undo-consume`, { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || "Nie udało się zmienić statusu posiłku.");
+      return data;
     },
     onMutate: async ({ id, isEaten }) => {
       await queryClient.cancelQueries({ queryKey: [api.mealPlan.getDay.path] });
