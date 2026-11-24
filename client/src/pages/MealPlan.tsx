@@ -4336,7 +4336,11 @@ function DaySection({ day, sectionId, recipes, userSettings, allAvailableIngredi
                                     {entry.recipe?.name || entry.customName}
                                   </p>
                                   {(entry.recipe || (entry.originalDishPercentage != null && entry.ingredients?.length > 0)) && (
-                                    <button onClick={() => onViewPlannedRecipe(entry.recipe, entry)} className="shrink-0 rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-primary" title="Podgląd składników" aria-label="Podgląd składników">
+                                    <button type="button" onClick={(event) => {
+                                      event.preventDefault();
+                                      event.stopPropagation();
+                                      void onViewPlannedRecipe(entry.recipe, entry);
+                                    }} className="shrink-0 rounded-md p-0.5 text-muted-foreground transition-colors hover:bg-muted hover:text-primary" title="Podgląd składników" aria-label="Podgląd składników">
                                       <Eye className="h-3.5 w-3.5" />
                                     </button>
                                   )}
