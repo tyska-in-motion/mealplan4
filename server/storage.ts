@@ -1667,7 +1667,8 @@ export class DatabaseStorage implements IStorage {
           person: sourceEntry.person,
           servings: Number(sourceEntry.servings) || 1,
           originalDishPercentage: sourceEntry.originalDishPercentage ?? null,
-          isEaten: sourceEntry.isEaten ?? false,
+          // A copied meal is a new plan entry, not a record of consumption.
+          isEaten: false,
         }).returning();
 
         const sourceIngredients = sourceEntry.ingredients || [];
