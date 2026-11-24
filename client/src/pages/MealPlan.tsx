@@ -2321,22 +2321,53 @@ export default function MealPlan({ mode = "plan" }: { mode?: "plan" | "shared"; 
                 return;
               }
 
-              const fullMeal = meal?.id ? await fetchMealEntryFull(Number(meal.id)) : null;
-              const isPartialMeal = fullMeal?.originalDishPercentage != null || meal?.originalDishPercentage != null;
-              const resolvedRecipe = fullMeal?.recipe
-                || (recipe?.id ? await fetchRecipeDetails(Number(recipe.id)) : null)
-                || {
-                  id: null,
-                  name: fullMeal?.customName || meal?.customName || "Częściowo zjedzony posiłek",
-                  servings: 1,
-                  ingredients: fullMeal?.ingredients || meal?.ingredients || [],
-                  instructions: [],
-                };
-              setViewingRecipe(resolvedRecipe);
-              setViewingMeal({ ...(fullMeal || meal), servings: isPartialMeal ? 1 : servingsForView });
-              setViewingServings(isPartialMeal ? 1 : servingsForView);
-              setIsSharedRecipeView(!!options?.shared || cookedBatchId > 0);
-              setViewingSharedBatchId(cookedBatchId || null);
+              // Partial entries in the day summary already carry the exact
+              // saved ingredient rows (including resolved ingredient details).
+              // Do not fetch the full entry or recipe again for this read-only
+              // preview: it must open from the snapshot and remain independent
+              // of recipeId, which is intentionally null on split leftovers.
+              if (meal?.originalDishPercentage != null) {
+                const ingredientRows = Array.isArray(meal.ingredients) ? meal.ingredients : [];
+                const partialRecipe = recipe
+                  ? { ...recipe, servings: 1, ingredients: ingredientRows.length ? ingredientRows : (recipe.ingredients || []) }
+                  : {
+                      id: null,
+                      name: meal.customName || "Częściowo zjedzony posiłek",
+                      servings: 1,
+                      ingredients: ingredientRows,
+                      instructions: [],
+                    };
+                setViewingRecipe(partialRecipe);
+                setViewingMeal({ ...meal, servings: 1 });
+                setViewingServings(1);
+                setIsSharedRecipeView(false);
+                setViewingSharedBatchId(null);
+                return;
+              }
+
+              try {
+                const fullMeal = meal?.id ? await fetchMealEntryFull(Number(meal.id)) : null;
+                const resolvedRecipe = fullMeal?.recipe
+                  || (recipe?.id ? await fetchRecipeDetails(Number(recipe.id)) : null)
+                  || {
+                    id: null,
+                    name: fullMeal?.customName || meal?.customName || "Posiłek",
+                    servings: 1,
+                    ingredients: fullMeal?.ingredients || meal?.ingredients || [],
+                    instructions: [],
+                  };
+                setViewingRecipe(resolvedRecipe);
+                setViewingMeal({ ...(fullMeal || meal), servings: servingsForView });
+                setViewingServings(servingsForView);
+                setIsSharedRecipeView(!!options?.shared || cookedBatchId > 0);
+                setViewingSharedBatchId(cookedBatchId || null);
+              } catch (error: any) {
+                toast({
+                  title: "Nie udało się otworzyć podglądu",
+                  description: error?.message || "Nie udało się pobrać danych posiłku.",
+                  variant: "destructive",
+                });
+              }
             }}
           />
         ))}
