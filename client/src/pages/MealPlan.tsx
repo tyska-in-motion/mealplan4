@@ -3788,7 +3788,7 @@ function DaySection({ day, sectionId, recipes, userSettings, allAvailableIngredi
         carbs: Number((Number(entry.totals.carbs) || 0).toFixed(1)),
         fat: Number((Number(entry.totals.fat) || 0).toFixed(1)),
         sugar: Math.round((Number(entry.totals.sugar) || 0) * 10) / 10,
-        fiber: Math.round((Number(entry.totals.fiber) || 0) * 10) / 10,
+        fiber: Math.round((Number(entry.totals.fiber) || 0) * 100) / 100,
         price: Math.round((Number(entry.totals.price) || 0) * 100) / 100,
       };
     }
@@ -3833,7 +3833,7 @@ function DaySection({ day, sectionId, recipes, userSettings, allAvailableIngredi
       carbs: Number(carbs.toFixed(1)),
       fat: Number(fat.toFixed(1)),
       sugar: Math.round(sugar * 10) / 10,
-      fiber: Math.round(fiber * 10) / 10,
+      fiber: Math.round(fiber * 100) / 100,
       price: Math.round(price * 100) / 100,
     };
   };
@@ -3846,7 +3846,7 @@ function DaySection({ day, sectionId, recipes, userSettings, allAvailableIngredi
       carbs: sum.carbs + entrySummary.carbs,
       fat: sum.fat + entrySummary.fat,
       sugar: sum.sugar + entrySummary.sugar,
-      fiber: sum.fiber + entrySummary.fiber,
+      fiber: Math.round((sum.fiber + entrySummary.fiber) * 100) / 100,
       price: Math.round((sum.price + entrySummary.price) * 100) / 100,
     };
   }, { calories: 0, protein: 0, carbs: 0, fat: 0, sugar: 0, fiber: 0, price: 0 });
@@ -4306,7 +4306,7 @@ function DaySection({ day, sectionId, recipes, userSettings, allAvailableIngredi
                   </div>
                   <div className="flex min-w-[56px] flex-col items-center rounded-lg border border-border bg-white px-2 py-0.5 shadow-sm dark:bg-background/70">
                     <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Błonnik</span>
-                    <span className="text-sm font-bold text-green-600">{Math.round(personSummary[person].fiber * 10) / 10}g</span>
+                    <span className="text-sm font-bold text-green-600">{Math.round(personSummary[person].fiber * 100) / 100}g</span>
                     <span className="text-[10px] text-muted-foreground">{formatNutrientRange(personTargets[person].fiberRange)}</span>
                   </div>
                   <div className="flex min-w-[68px] flex-col items-center rounded-lg border border-border bg-white px-2 py-0.5 shadow-sm dark:bg-background/70">
